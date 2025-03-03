@@ -5,8 +5,8 @@ pragma solidity ^0.8.28;
 // import "hardhat/console.sol";
 
 contract Lock {
-    uint public unlockTime;
-    address payable public owner;
+    uint public immutable unlockTime;
+    address payable public immutable owner;
 
     event Withdrawal(uint amount, uint when);
 
