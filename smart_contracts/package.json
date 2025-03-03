@@ -2,6 +2,21 @@
   "name": "hardhat-project",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.22.19"
+    "hardhat": "^2.22.19",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai-as-promised": "^8.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.13.8",
+    "chai-as-promised": "^8.0.1",
+    "hardhat-watcher": "^2.5.0"
+  },
+  "scripts": {
+    "test": "npx hardhat test",
+    "compile": "npx hardhat compile",
+    "clean": "npx hardhat clean",
+    "watch": "npm run test && npx hardhat watch test",
+    "deployLocal": "npx hardhat ignition deploy ./ignition/modules/Todo.ts",
+    "deploySepolia": "npx hardhat ignition deploy --network sepolia --verify ./ignition/modules/Todo.ts",
+    "coverage": "npx hardhat coverage"
   }
 }
