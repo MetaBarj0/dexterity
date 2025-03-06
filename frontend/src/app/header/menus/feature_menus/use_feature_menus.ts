@@ -7,28 +7,39 @@ export type Props = {
   setDisplayedDropdown: Dispatch<SetStateAction<DisplayedDropdown | undefined>>
 };
 
-export const setupDropdownPositionUpdates = (args: {
-  parentMenuRef: RefObject<HTMLDivElement>,
-  setDropdownPosition: Dispatch<SetStateAction<DropdownPosition | undefined>>
-}) => {
+export const setupAllDropdownsPositionUpdates = (dropdownPositioners: DropdownPositioner[]) => {
   return () => {
-    const updateDropdownPosition = () => {
-      if (!args.parentMenuRef.current)
+    const updateOneDropdownPosition = (
+      parentRef: RefObject<HTMLDivElement>,
+      setDropdownPosition: Dispatch<SetStateAction<DropdownPosition | undefined>>
+    ) => {
+      if (!parentRef.current)
         return;
 
-      const rect = args.parentMenuRef.current.getBoundingClientRect();
+      const rect = parentRef.current.getBoundingClientRect();
 
-      args.setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left });
+      setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left });
     }
 
-    updateDropdownPosition();
+    const updateAllDropdownPositions = () => {
+      dropdownPositioners.forEach(({ setDropdownPosition: dropdownPosition, parentMenuRef }) => {
+        updateOneDropdownPosition(parentMenuRef, dropdownPosition);
+      });
+    };
 
-    window.addEventListener("resize", updateDropdownPosition);
-    window.addEventListener("scroll", updateDropdownPosition);
+    updateAllDropdownPositions();
+
+    window.addEventListener("resize", updateAllDropdownPositions);
+    window.addEventListener("scroll", updateAllDropdownPositions);
 
     return () => {
-      window.removeEventListener("resize", updateDropdownPosition);
-      window.removeEventListener("scroll", updateDropdownPosition);
+      window.removeEventListener("resize", updateAllDropdownPositions);
+      window.removeEventListener("scroll", updateAllDropdownPositions);
     };
   }
-}
+};
+
+type DropdownPositioner = {
+  setDropdownPosition: Dispatch<SetStateAction<DropdownPosition | undefined>>,
+  parentMenuRef: RefObject<HTMLDivElement>
+};

@@ -1,8 +1,10 @@
+import { forwardRef } from "react";
 import { Props } from "../use_feature_menus"
 
-export default (props: Props) => {
+export default forwardRef<HTMLDivElement, Props>((props: Props, ref) => {
   return (
     <div
+      ref={ref}
       className="bg-[var(--menu-button-background)] rounded-md h-full text-center content-center"
       onMouseOver={() => {
         props.setDisplayedDropdown("Pool");
@@ -10,5 +12,4 @@ export default (props: Props) => {
       pool
     </div>
   );
-}
-
+});

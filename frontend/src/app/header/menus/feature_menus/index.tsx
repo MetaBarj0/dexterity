@@ -8,31 +8,41 @@ import PoolDropdown from "./pool_dropdown";
 import Trade from "./trade";
 import TradeDropdown from "./trade_dropdown";
 import { DropdownPosition } from "./trade_dropdown/use_trade_dropdown";
-import { DisplayedDropdown, setupDropdownPositionUpdates } from "./use_feature_menus";
+import { DisplayedDropdown, setupAllDropdownsPositionUpdates } from "./use_feature_menus";
 
 export default () => {
   const [displayedDropdown, setDisplayedDropdown] = useState<DisplayedDropdown>();
-  const [dropdownPosition, setDropdownPosition] = useState<DropdownPosition>();
+  const [tradeDropdownPosition, setTradeDropdownPosition] = useState<DropdownPosition>();
+  const [exploreDropdownPosition, setExploreDropdownPosition] = useState<DropdownPosition>();
+  const [poolDropdownPosition, setPoolDropdownPosition] = useState<DropdownPosition>();
 
-  const parentMenuRef = useRef<HTMLDivElement>(undefined!);
+  const tradeMenuRef = useRef<HTMLDivElement>(undefined!);
+  const exploreMenuRef = useRef<HTMLDivElement>(undefined!);
+  const poolMenuRef = useRef<HTMLDivElement>(undefined!);
 
-  useEffect(setupDropdownPositionUpdates({ parentMenuRef, setDropdownPosition }), []);
+  useEffect(setupAllDropdownsPositionUpdates(
+    [
+      { setDropdownPosition: setTradeDropdownPosition, parentMenuRef: tradeMenuRef },
+      { setDropdownPosition: setExploreDropdownPosition, parentMenuRef: exploreMenuRef },
+      { setDropdownPosition: setPoolDropdownPosition, parentMenuRef: poolMenuRef }
+    ]
+  ), []);
 
   return (
     <div className="ml-8 flex">
       <div className="grid grid-cols-3 gap-4 mt-1 font-black">
-        <Trade ref={parentMenuRef} setDisplayedDropdown={setDisplayedDropdown} />
-        <Explore setDisplayedDropdown={setDisplayedDropdown} />
-        <Pool setDisplayedDropdown={setDisplayedDropdown} />
+        <Trade ref={tradeMenuRef} setDisplayedDropdown={setDisplayedDropdown} />
+        <Explore ref={exploreMenuRef} setDisplayedDropdown={setDisplayedDropdown} />
+        <Pool ref={poolMenuRef} setDisplayedDropdown={setDisplayedDropdown} />
 
         {displayedDropdown === "Trade" &&
-          <TradeDropdown setDisplayedDropdown={setDisplayedDropdown} position={dropdownPosition} />}
+          <TradeDropdown setDisplayedDropdown={setDisplayedDropdown} position={tradeDropdownPosition} />}
 
         {displayedDropdown === "Explore" &&
-          <ExploreDropdown setDisplayedDropdown={setDisplayedDropdown} position={dropdownPosition} />}
+          <ExploreDropdown setDisplayedDropdown={setDisplayedDropdown} position={exploreDropdownPosition} />}
 
         {displayedDropdown === "Pool" &&
-          <PoolDropdown setDisplayedDropdown={setDisplayedDropdown} position={dropdownPosition} />}
+          <PoolDropdown setDisplayedDropdown={setDisplayedDropdown} position={poolDropdownPosition} />}
       </div>
     </div>
   );
