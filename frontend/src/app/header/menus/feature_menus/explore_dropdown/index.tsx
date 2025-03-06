@@ -1,8 +1,15 @@
-import { States } from "../use_feature_menus"
+import { Props as ParentProps } from "../use_feature_menus";
+import { Props } from "./use_explore_dropdown";
 
-export default (states: States) => {
+export default (props: ParentProps & Props) => {
+  const top = props.position?.top;
+  const left = props.position?.left;
+
   return (
-    <div className="fixed top-15" onMouseOut={() => { states.setDisplayedDropdown(undefined); }}>
+    <div
+      className="fixed"
+      style={{ top: `${top}px`, left: `${left}px` }}
+      onMouseOut={() => { props.setDisplayedDropdown(undefined); }}>
       <h1>explore dropdown</h1>
     </div>
   );

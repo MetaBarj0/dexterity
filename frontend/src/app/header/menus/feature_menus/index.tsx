@@ -29,10 +29,10 @@ export default () => {
           <TradeDropdown setDisplayedDropdown={setDisplayedDropdown} position={dropdownPosition} />}
 
         {displayedDropdown === "Explore" &&
-          <ExploreDropdown setDisplayedDropdown={setDisplayedDropdown} />}
+          <ExploreDropdown setDisplayedDropdown={setDisplayedDropdown} position={dropdownPosition} />}
 
         {displayedDropdown === "Pool" &&
-          <PoolDropdown setDisplayedDropdown={setDisplayedDropdown} />}
+          <PoolDropdown setDisplayedDropdown={setDisplayedDropdown} position={dropdownPosition} />}
       </div>
     </div>
   );

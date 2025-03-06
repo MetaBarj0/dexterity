@@ -1,5 +1,3 @@
-"use client";
-
 import { Props as ParentProps } from "../use_feature_menus";
 import { Props } from "./use_trade_dropdown";
 
