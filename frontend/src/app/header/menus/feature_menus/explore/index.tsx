@@ -1,11 +1,11 @@
-import { States } from "../use_feature_menus"
+import { Props } from "../use_feature_menus"
 
-export default (states: States) => {
+export default (props: Props) => {
   return (
     <div
-      className="bg-gray-100 rounded-md h-full text-center content-center"
+      className="bg-[var(--menu-button-background)] rounded-md h-full text-center content-center"
       onMouseOver={() => {
-        states.setDisplayedDropdown("Explore");
+        props.setDisplayedDropdown("Explore");
       }}>
       explore
     </div>

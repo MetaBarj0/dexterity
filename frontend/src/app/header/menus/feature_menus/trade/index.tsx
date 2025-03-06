@@ -1,15 +1,15 @@
 "use client";
 
-import { States } from "../use_feature_menus";
+import { forwardRef } from "react";
+import { Props } from "../use_feature_menus";
 
-export default (states: States) => {
+export default forwardRef<HTMLDivElement, Props>((props: Props, ref) => {
   return (
-    <div className="bg-gray-100 rounded-md h-full text-center content-center"
+    <div ref={ref} className="bg-[var(--menu-button-background)] rounded-md h-full text-center content-center"
       onMouseOver={() => {
-        states.setDisplayedDropdown("Trade");
+        props.setDisplayedDropdown("Trade");
       }}>
       trade
     </div>
   );
-}
-
+});
