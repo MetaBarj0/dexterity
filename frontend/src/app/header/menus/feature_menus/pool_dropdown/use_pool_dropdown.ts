@@ -1,8 +1,4 @@
-// TODO: duplicated code
-export type DropdownPosition = {
-  top: number,
-  left: number
-};
+import { DropdownPosition } from "../use_feature_menus"
 
 export type Props = {
   position?: DropdownPosition

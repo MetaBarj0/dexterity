@@ -7,8 +7,7 @@ import Pool from "./pool";
 import PoolDropdown from "./pool_dropdown";
 import Trade from "./trade";
 import TradeDropdown from "./trade_dropdown";
-import { DropdownPosition } from "./trade_dropdown/use_trade_dropdown";
-import { DisplayedDropdown, setupAllDropdownsPositionUpdates } from "./use_feature_menus";
+import { DisplayedDropdown, DropdownPosition, setupAllDropdownsPositionUpdates } from "./use_feature_menus";
 
 export default () => {
   const [displayedDropdown, setDisplayedDropdown] = useState<DisplayedDropdown>();

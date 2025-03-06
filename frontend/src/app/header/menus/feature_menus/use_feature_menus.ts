@@ -1,7 +1,11 @@
 import { Dispatch, RefObject, SetStateAction } from "react";
-import { DropdownPosition } from "./trade_dropdown/use_trade_dropdown";
 
 export type DisplayedDropdown = "Explore" | "Pool" | "Trade";
+
+export type DropdownPosition = {
+  top: number,
+  left: number
+};
 
 export type Props = {
   setDisplayedDropdown: Dispatch<SetStateAction<DisplayedDropdown | undefined>>
