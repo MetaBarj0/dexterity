@@ -6,9 +6,9 @@ export default forwardRef<HTMLDivElement, Props>((props: Props, ref) => {
     <div
       ref={ref}
       className="bg-[var(--menu-button-background)] rounded-md h-full text-center content-center cursor-pointer"
-      onMouseOver={() => {
-        props.setDisplayedDropdown("Explore");
-      }}>
+      onMouseOver={() => { props.setDisplayedDropdown("Explore"); }}
+      onMouseOut={() => { props.setDisplayedDropdown(undefined); }}
+    >
       explore
     </div>
   );

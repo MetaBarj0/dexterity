@@ -7,8 +7,9 @@ export default (props: ParentProps & Props) => {
 
   return (
     <div
-      className="fixed"
+      className="fixed cursor-pointer"
       style={{ top: `${top}px`, left: `${left}px` }}
+      onMouseOver={() => { props.setDisplayedDropdown("Explore"); }}
       onMouseOut={() => { props.setDisplayedDropdown(undefined); }}>
       <h1>explore dropdown</h1>
     </div>
