@@ -10,6 +10,7 @@
   --foreground: #171717;
   --menu-button-background: theme(colors.gray.100);
   --wallet-connect-disconnected-background: theme(colors.red.300);
+  --wallet-connect-connected-background: theme(colors.green.300);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,7 +18,7 @@
     --background: #0c0c0c;
     --foreground: #fefefe;
     --menu-button-background: theme(colors.gray.800);
-    --wallet-connect-disconnected-background: theme(colors.red.900);
+    --wallet-connect-connected-background: theme(colors.green.900);
   }
 }
 
