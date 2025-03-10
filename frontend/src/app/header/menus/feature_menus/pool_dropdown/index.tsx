@@ -1,7 +1,7 @@
 import { Props as ParentProps } from "../use_feature_menus";
 import { Props } from "./use_pool_dropdown";
 
-export default (props: ParentProps & Props) => {
+export default function PoolDropdown(props: ParentProps & Props) {
   const top = props.position?.top;
   const left = props.position?.left;
 

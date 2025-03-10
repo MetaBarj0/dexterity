@@ -1,6 +1,6 @@
 import Swap from "./swap/Swap"
 
-export default () => {
+export default function AppPage() {
   return (
     <div className="flex justify-center">
       <Swap />

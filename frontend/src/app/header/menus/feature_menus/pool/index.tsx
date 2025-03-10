@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 import { Props } from "../use_feature_menus"
 
-export default forwardRef<HTMLDivElement, Props>((props: Props, ref) => {
+export default forwardRef<HTMLDivElement, Props>(function Pool(props: Props, ref) {
   return (
     <div
       ref={ref}

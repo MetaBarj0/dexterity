@@ -9,7 +9,7 @@ import Trade from "./trade";
 import TradeDropdown from "./trade_dropdown";
 import { DisplayedDropdown, DropdownPosition, setupAllDropdownsPositionUpdates } from "./use_feature_menus";
 
-export default () => {
+export default function FeatureMenus() {
   const [displayedDropdown, setDisplayedDropdown] = useState<DisplayedDropdown>();
   const [tradeDropdownPosition, setTradeDropdownPosition] = useState<DropdownPosition>();
   const [exploreDropdownPosition, setExploreDropdownPosition] = useState<DropdownPosition>();
@@ -19,13 +19,15 @@ export default () => {
   const exploreMenuRef = useRef<HTMLDivElement>(undefined!);
   const poolMenuRef = useRef<HTMLDivElement>(undefined!);
 
-  useEffect(setupAllDropdownsPositionUpdates(
-    [
-      { setDropdownPosition: setTradeDropdownPosition, parentMenuRef: tradeMenuRef },
-      { setDropdownPosition: setExploreDropdownPosition, parentMenuRef: exploreMenuRef },
-      { setDropdownPosition: setPoolDropdownPosition, parentMenuRef: poolMenuRef }
-    ]
-  ), []);
+  useEffect(() => {
+    setupAllDropdownsPositionUpdates(
+      [
+        { setDropdownPosition: setTradeDropdownPosition, parentMenuRef: tradeMenuRef },
+        { setDropdownPosition: setExploreDropdownPosition, parentMenuRef: exploreMenuRef },
+        { setDropdownPosition: setPoolDropdownPosition, parentMenuRef: poolMenuRef }
+      ]
+    )
+  }, []);
 
   return (
     <div className="ml-8 flex">

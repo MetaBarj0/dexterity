@@ -7,10 +7,11 @@ export type NetworkInfo = {
   chainId: bigint
 };
 
-export default function (states: States) {
+export default function useWalletConnect(states: States) {
   return {
     connectAndPlugWallet: async () => {
       await switchWalletNetworkToSepolia();
+
       plugBrowserWallet();
     },
     updateWalletStates: () => {

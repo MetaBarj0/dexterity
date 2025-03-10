@@ -1,15 +1,15 @@
 "use client";
 
 import { BrowserProvider, JsonRpcSigner } from "ethers";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useWalletConnect, { NetworkInfo } from "./use_wallet_connect";
 
-export default () => {
+export default function WalletConnect() {
   const [provider, setProvider] = useState<BrowserProvider>();
   const [connectedNetwork, setConnectedNetwork] = useState<NetworkInfo>({ name: "Disconnected", chainId: 0n });
   const [connectedAccount, setConnectedAccount] = useState("Connect");
-  const [accountBalance, setAccountBalance] = useState("0 ETH");
-  const [signer, setSigner] = useState<JsonRpcSigner>();
+  const [, setAccountBalance] = useState("0 ETH");
+  const [, setSigner] = useState<JsonRpcSigner>();
 
   const use = useWalletConnect({
     provider, setProvider,
@@ -18,9 +18,11 @@ export default () => {
     setAccountBalance,
     setSigner
   });
+  const plugWalletRef = useRef(use.plugWallet);
 
-  useEffect(use.plugWallet, []);
-  useEffect(use.updateWalletStates, [provider]);
+  useEffect(() => { plugWalletRef.current = use.plugWallet; }, [use]);
+  useEffect(() => { plugWalletRef.current() }, []);
+  useEffect(() => use.updateWalletStates(), [use, provider]);
 
   return (
     <div className="flex justify-self-end

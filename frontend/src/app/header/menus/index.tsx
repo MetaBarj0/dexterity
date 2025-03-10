@@ -1,7 +1,7 @@
 import RootMenu from "./root_menu"
 import FeatureMenus from "./feature_menus"
 
-export default () => {
+export default function Menu() {
   return (
     <div className="flex">
       <RootMenu />

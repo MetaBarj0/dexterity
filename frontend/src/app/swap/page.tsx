@@ -1,6 +1,6 @@
 import Swap from "./Swap"
 
-export default () => {
+export default function SwapPage() {
   return (
     <>
       <Swap />
