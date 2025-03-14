@@ -1,0 +1,6 @@
+build:
+	forge build
+
+.PHONY: test
+test:
+	forge test
