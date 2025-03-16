@@ -7,3 +7,9 @@ test:
 
 testv:
 	@forge test -vv
+
+watch:
+	@forge test -w
+
+watchv:
+	@forge test -w -vv
