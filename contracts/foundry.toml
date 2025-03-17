@@ -5,6 +5,8 @@ libs = ["lib"]
 solc_version = "0.8.28"
 evm_version = "paris"
 
+remappings = ["@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"]
+
 [rpc_endpoints]
 sepolia = "${SEPOLIA_URL}"
 mainnet = "${MAINNET_URL}"
@@ -12,6 +14,7 @@ local = "http://${ANVIL_HOST}:${ANVIL_PORT}"
 
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
+
 
 [fmt]
 tab_width = 2
