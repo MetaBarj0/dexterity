@@ -13,8 +13,8 @@ contract Dexterity is IDexterity {
     creator = msg.sender;
   }
 
-  function createERC20Pair(address token0, address token1) external override returns (uint256 pairId) {
-    require(address(token0) != address(0) && address(token1) != address(0), CreateERC20PairZeroAddress());
+  function createERC20OnlyPair(address token0, address token1) external override returns (uint256 pairId) {
+    require(address(token0) != address(0) && address(token1) != address(0), CreateERC20OnlyPairZeroAddress());
 
     (address lesserToken, address greaterToken) = token0 < token1 ? (token0, token1) : (token1, token0);
 
@@ -22,7 +22,7 @@ contract Dexterity is IDexterity {
 
     ERC20Pair storage pair = erc20Pairs[pairId];
 
-    require(pair.token0 == address(0) && pair.token1 == address(0), CreateERC20PairAlreadyExists());
+    require(pair.token0 == address(0) && pair.token1 == address(0), CreateERC20OnlyPairAlreadyExists());
 
     pair.token0 = lesserToken;
     pair.token1 = greaterToken;

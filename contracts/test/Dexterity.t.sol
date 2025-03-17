@@ -24,22 +24,22 @@ contract DexterityTests is Test {
   }
 
   function test_createERC20Pair_fails_WithZeroTokenAddresses() public {
-    vm.expectRevert(IDexterity.CreateERC20PairZeroAddress.selector);
+    vm.expectRevert(IDexterity.CreateERC20OnlyPairZeroAddress.selector);
 
-    dex.createERC20Pair(address(0), address(0));
+    dex.createERC20OnlyPair(address(0), address(0));
   }
 
   function test_createERC20Pair_returnsPairId_WithValidTokenAddresses() public {
-    uint256 pairId = dex.createERC20Pair(address(tokenA), address(tokenB));
+    uint256 pairId = dex.createERC20OnlyPair(address(tokenA), address(tokenB));
 
     assertNotEq(uint256(0), pairId);
   }
 
   function test_createERC20Pair_fails_whenPairAlreadyExists() public {
-    dex.createERC20Pair(address(tokenA), address(tokenB));
+    dex.createERC20OnlyPair(address(tokenA), address(tokenB));
 
-    vm.expectRevert(IDexterity.CreateERC20PairAlreadyExists.selector);
-    dex.createERC20Pair(address(tokenB), address(tokenA));
+    vm.expectRevert(IDexterity.CreateERC20OnlyPairAlreadyExists.selector);
+    dex.createERC20OnlyPair(address(tokenB), address(tokenA));
   }
 
   function test_createERC20EtherPair_fails_withZeroTokenAddress() public {
