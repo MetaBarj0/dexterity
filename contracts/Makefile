@@ -20,6 +20,8 @@ watchv:
 	@forge test -w -vv
 
 run_local_blockchain: .anvil.pid
+	@[ -z "$$(pidof anvil)" ] && rm .anvil.pid && $(MAKE) .anvil.pid || return 0
+	@echo $$(pidof anvil) > .anvil.pid
 
 kill_local_blockchain:
 	@[ -f .anvil.pid ] && kill "$$(cat .anvil.pid)" && rm .anvil.pid || echo "nothing to kill"
@@ -31,9 +33,12 @@ sepolia_deploy:
 	@forge script script/DeployDexterity.s.sol --rpc-url sepolia --broadcast --verify
 
 .anvil.pid:
-	@anvil \
-		--fork-url mainnet \
-		--fork-block-number "${MAINNET_FORK_BLOCK}" \
-		--host "${ANVIL_HOST}" --port "${ANVIL_PORT}" \
-		--hardfork "${ANVIL_EVM_VERSION}" \
-		& echo $$!>.anvil.pid
+	@[ -z "$$(pidof anvil)" ] && \
+		anvil \
+			--fork-url mainnet \
+			--fork-block-number "${MAINNET_FORK_BLOCK}" \
+			--host "${ANVIL_HOST}" --port "${ANVIL_PORT}" \
+			--hardfork "${ANVIL_EVM_VERSION}" \
+			& echo $$!>.anvil.pid || \
+		echo $$(pidof anvil) > .anvil.pid
+
