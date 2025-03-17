@@ -4,6 +4,7 @@ include .env
 	@cp .env.sample .env
 
 build:
+	@git submodule update --init --recursive
 	@forge build
 
 .PHONY: test
