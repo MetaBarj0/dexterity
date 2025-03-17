@@ -5,14 +5,14 @@ import { Dexterity } from "../src/Dexterity.sol";
 import { Script, console } from "forge-std/Script.sol";
 
 contract DexterityScript is Script {
-  Dexterity public dexterity;
-
   function setUp() public { }
 
   function run() public {
-    vm.startBroadcast();
+    uint256 pk = vm.envUint("PRIVATE_KEY");
 
-    dexterity = new Dexterity();
+    vm.startBroadcast(pk);
+
+    Dexterity dexterity = new Dexterity();
 
     vm.stopBroadcast();
   }
