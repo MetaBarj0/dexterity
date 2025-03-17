@@ -6,7 +6,7 @@ import { Dexterity } from "../src/Dexterity.sol";
 import { Script, console } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
 
-contract DexterityScript is Script {
+contract DeployDexterityScript is Script {
   function setUp() public { }
 
   function run() public {
@@ -15,7 +15,7 @@ contract DexterityScript is Script {
 
     vm.startBroadcast(wallet.privateKey);
 
-    Dexterity dexterity = new Dexterity();
+    new Dexterity();
 
     vm.stopBroadcast();
   }

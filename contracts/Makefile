@@ -19,8 +19,21 @@ watch:
 watchv:
 	@forge test -w -vv
 
-dry_deploy:
-	@forge script script/Dexterity.s.sol --rpc-url sepolia
+run_local_blockchain: .anvil.pid
+
+kill_local_blockchain:
+	@[ -f .anvil.pid ] && kill "$$(cat .anvil.pid)" && rm .anvil.pid || echo "nothing to kill"
+
+local_deploy: run_local_blockchain
+	@while true; do forge script script/DeployDexterity.s.sol --rpc-url local --broadcast && break || sleep 1; done
 
 sepolia_deploy:
-	@forge script script/Dexterity.s.sol --rpc-url sepolia --broadcast --verify
+	@forge script script/DeployDexterity.s.sol --rpc-url sepolia --broadcast --verify
+
+.anvil.pid:
+	@anvil \
+		--fork-url mainnet \
+		--fork-block-number "${MAINNET_FORK_BLOCK}" \
+		--host "${ANVIL_HOST}" --port "${ANVIL_PORT}" \
+		--hardfork "${ANVIL_EVM_VERSION}" \
+		& echo $$!>.anvil.pid

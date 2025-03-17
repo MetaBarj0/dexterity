@@ -10,7 +10,7 @@ contract DexterityTest is Test {
 
   function setUp() public {
     string memory mainnetRpcUrl = vm.rpcUrl("mainnet");
-    uint256 mainnetFork = vm.createSelectFork(mainnetRpcUrl, 22_066_155);
+    uint256 mainnetFork = vm.createSelectFork(mainnetRpcUrl, vm.envUint("MAINNET_FORK_BLOCK"));
 
     dexterity = new Dexterity();
   }

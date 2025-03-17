@@ -8,6 +8,7 @@ evm_version = "paris"
 [rpc_endpoints]
 sepolia = "${SEPOLIA_URL}"
 mainnet = "${MAINNET_URL}"
+local = "http://${ANVIL_HOST}:${ANVIL_PORT}"
 
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
