@@ -38,6 +38,8 @@ contract Dexterity is IDexterity {
     require(erc20EtherPairs[pairId] == address(0), CreateERC20EtherPairAlreadyExists());
 
     erc20EtherPairs[pairId] = token;
+
+    emit ERC20EtherPairCreated(address(token), pairId);
   }
 
   function _computeERC20PairId(address token0, address token1) private pure returns (uint256) {
