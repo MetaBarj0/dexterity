@@ -26,6 +26,8 @@ contract Dexterity is IDexterity {
 
     pair.token0 = lesserToken;
     pair.token1 = greaterToken;
+
+    emit ERC20OnlyPairCreated(token0, token1, pairId);
   }
 
   function createERC20EtherPair(address token) external override returns (uint256 pairId) {

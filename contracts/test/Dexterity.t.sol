@@ -59,4 +59,13 @@ contract DexterityTests is Test {
     vm.expectRevert(IDexterity.CreateERC20EtherPairAlreadyExists.selector);
     dex.createERC20EtherPair(address(tokenA));
   }
+
+  function test_createERC20OnlyPair_emitsERC20OnlyPairCreated_withValidPair() public {
+    uint256 pairId = uint256(keccak256(abi.encodePacked(address(tokenA), address(tokenB))));
+
+    vm.expectEmit();
+    emit IDexterity.ERC20OnlyPairCreated(address(tokenA), address(tokenB), pairId);
+
+    dex.createERC20OnlyPair(address(tokenA), address(tokenB));
+  }
 }
