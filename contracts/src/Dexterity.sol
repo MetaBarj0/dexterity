@@ -15,6 +15,7 @@ contract Dexterity is IDexterity {
 
   function createERC20OnlyPair(address token0, address token1) external override returns (uint256 pairId) {
     require(address(token0) != address(0) && address(token1) != address(0), CreateERC20OnlyPairZeroAddress());
+    require(address(token0) != address(token1), CreateERC20OnlyPairSameAddress());
 
     (address lesserToken, address greaterToken) = token0 < token1 ? (token0, token1) : (token1, token0);
 

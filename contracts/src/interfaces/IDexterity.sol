@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 interface IDexterity {
   error CreateERC20OnlyPairZeroAddress();
+  error CreateERC20OnlyPairSameAddress();
   error CreateERC20OnlyPairAlreadyExists();
   error CreateERC20EtherPairZeroAddress();
   error CreateERC20EtherPairAlreadyExists();

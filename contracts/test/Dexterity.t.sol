@@ -29,6 +29,12 @@ contract DexterityTests is Test {
     dex.createERC20OnlyPair(address(0), address(0));
   }
 
+  function test_createERC20Pair_fails_WithSameTokenAddress() public {
+    vm.expectRevert(IDexterity.CreateERC20OnlyPairSameAddress.selector);
+
+    dex.createERC20OnlyPair(address(tokenA), address(tokenA));
+  }
+
   function test_createERC20Pair_returnsPairId_WithValidTokenAddresses() public {
     uint256 pairId = dex.createERC20OnlyPair(address(tokenA), address(tokenB));
 
