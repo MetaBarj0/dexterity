@@ -20,6 +20,9 @@ watch:
 watchv:
 	@forge test -w -vv
 
+coverage:
+	@forge coverage
+
 run_local_blockchain: .anvil.pid
 	@[ -z "$$(pidof anvil)" ] && rm .anvil.pid && $(MAKE) .anvil.pid || return 0
 	@echo $$(pidof anvil) > .anvil.pid
