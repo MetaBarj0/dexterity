@@ -7,6 +7,7 @@ interface IDexterity {
   error CreateERC20OnlyPairAlreadyExists();
   error CreateERC20EtherPairZeroAddress();
   error CreateERC20EtherPairAlreadyExists();
+  error DepositERC20OnlyUnhandledToken();
 
   struct ERC20Pair {
     address token0;
@@ -18,4 +19,5 @@ interface IDexterity {
 
   function createERC20OnlyPair(address token0, address token1) external returns (uint256 pairId);
   function createERC20EtherPair(address token) external returns (uint256 pairId);
+  function depositERC20Only(address token0, address token1, uint256 token0Amount, uint256 token1Amount) external;
 }

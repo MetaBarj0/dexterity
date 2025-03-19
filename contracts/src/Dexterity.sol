@@ -19,7 +19,7 @@ contract Dexterity is IDexterity {
 
     (address lesserToken, address greaterToken) = token0 < token1 ? (token0, token1) : (token1, token0);
 
-    pairId = _computeERC20PairId(lesserToken, greaterToken);
+    pairId = _computeERC20OnlyPairId(lesserToken, greaterToken);
 
     ERC20Pair storage pair = erc20Pairs[pairId];
 
@@ -43,7 +43,14 @@ contract Dexterity is IDexterity {
     emit ERC20EtherPairCreated(address(token), pairId);
   }
 
-  function _computeERC20PairId(address token0, address token1) private pure returns (uint256) {
+  function depositERC20Only(address token0, address token1, uint256 token0Amount, uint256 token1Amount)
+    external
+    override
+  {
+    revert DepositERC20OnlyUnhandledToken();
+  }
+
+  function _computeERC20OnlyPairId(address token0, address token1) private pure returns (uint256) {
     return uint256(keccak256(abi.encodePacked(token0, token1)));
   }
 

@@ -83,4 +83,12 @@ contract DexterityTests is Test {
 
     dex.createERC20EtherPair(address(tokenA));
   }
+
+  // TODO: too much address(token)...
+  function test_depositERC20Only_fails_withUnhandledToken() public {
+    dex.createERC20OnlyPair(address(tokenA), address(tokenB));
+
+    vm.expectRevert(IDexterity.DepositERC20OnlyUnhandledToken.selector);
+    dex.depositERC20Only(address(tokenA), address(tokenB), uint256(0), uint256(0));
+  }
 }
