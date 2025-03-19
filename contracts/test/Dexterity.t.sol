@@ -92,6 +92,13 @@ contract DexterityTests is Test {
     dex.createERC20OnlyPair(tokenAAddress, tokenBAddress);
 
     vm.expectRevert(IDexterity.DepositERC20OnlyUnhandledToken.selector);
+    dex.depositERC20Only(address(0), address(0), uint256(1), uint256(2));
+  }
+
+  function test_depositERC20Only_fails_withInsufficientAmount() public {
+    dex.createERC20OnlyPair(tokenAAddress, tokenBAddress);
+
+    vm.expectRevert(IDexterity.DepositERC20OnlyInsufficientAmount.selector);
     dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(0), uint256(0));
   }
 }

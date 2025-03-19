@@ -47,7 +47,8 @@ contract Dexterity is IDexterity {
     external
     override
   {
-    revert DepositERC20OnlyUnhandledToken();
+    require(token0Amount > 0 && token1Amount > 0, DepositERC20OnlyInsufficientAmount());
+    require(erc20Pairs[_computeERC20OnlyPairId(token0, token1)].token0 != address(0), DepositERC20OnlyUnhandledToken());
   }
 
   function _computeERC20OnlyPairId(address token0, address token1) private pure returns (uint256) {

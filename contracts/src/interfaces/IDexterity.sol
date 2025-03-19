@@ -8,6 +8,7 @@ interface IDexterity {
   error CreateERC20EtherPairZeroAddress();
   error CreateERC20EtherPairAlreadyExists();
   error DepositERC20OnlyUnhandledToken();
+  error DepositERC20OnlyInsufficientAmount();
 
   struct ERC20Pair {
     address token0;
