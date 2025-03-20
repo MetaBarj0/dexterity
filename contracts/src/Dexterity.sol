@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { IDexterity } from "./interfaces/IDexterity.sol";
+import { IDexterity } from "./interface/IDexterity.sol";
+import { Maths } from "./library/Maths.sol";
+
+using Maths for uint256;
 
 contract Dexterity is IDexterity {
   address public immutable creator;
@@ -45,10 +48,14 @@ contract Dexterity is IDexterity {
 
   function depositERC20Only(address token0, address token1, uint256 token0Amount, uint256 token1Amount)
     external
+    view
     override
+    returns (uint256 shares)
   {
     require(token0Amount > 0 && token1Amount > 0, DepositERC20OnlyInsufficientAmount());
     require(erc20Pairs[_computeERC20OnlyPairId(token0, token1)].token0 != address(0), DepositERC20OnlyUnhandledToken());
+
+    shares = (token0Amount * token1Amount).sqrt();
   }
 
   function _computeERC20OnlyPairId(address token0, address token1) private pure returns (uint256) {

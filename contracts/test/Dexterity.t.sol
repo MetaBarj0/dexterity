@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { Dexterity } from "../src/Dexterity.sol";
-import { IDexterity } from "../src/interfaces/IDexterity.sol";
+import { IDexterity } from "../src/interface/IDexterity.sol";
 
 import { TokenA } from "./ERC20/TokenA.sol";
 import { TokenB } from "./ERC20/TokenB.sol";
@@ -100,5 +100,24 @@ contract DexterityTests is Test {
 
     vm.expectRevert(IDexterity.DepositERC20OnlyInsufficientAmount.selector);
     dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(0), uint256(0));
+  }
+
+  // TODO: fuzzing here
+  function test_depositERC20Only_givesSharesDependingOnTheAmount() public {
+    dex.createERC20OnlyPair(tokenAAddress, tokenBAddress);
+
+    uint256 shares;
+
+    shares = dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(1), uint256(1));
+    assertEqUint(shares, 1);
+
+    shares = dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(90), uint256(40));
+    assertEqUint(shares, 60);
+
+    shares = dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(10), uint256(1000));
+    assertEqUint(shares, 100);
+
+    shares = dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(400), uint256(4_000_000));
+    assertEqUint(shares, 40_000);
   }
 }
