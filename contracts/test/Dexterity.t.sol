@@ -6,21 +6,26 @@ import { IDexterity } from "../src/interface/IDexterity.sol";
 
 import { TokenA } from "./ERC20/TokenA.sol";
 import { TokenB } from "./ERC20/TokenB.sol";
+import { TokenC } from "./ERC20/TokenC.sol";
 import { Test, console } from "forge-std/Test.sol";
 
 contract DexterityTests is Test {
   Dexterity dex;
   TokenA tokenA;
   TokenB tokenB;
+  TokenC tokenC;
   address tokenAAddress;
   address tokenBAddress;
+  address tokenCAddress;
 
   function setUp() public {
     dex = new Dexterity();
     tokenA = new TokenA();
     tokenB = new TokenB();
+    tokenC = new TokenC();
     tokenAAddress = address(tokenA);
     tokenBAddress = address(tokenB);
+    tokenCAddress = address(tokenC);
   }
 
   function test_deploy_creatorIsSet() public view {
