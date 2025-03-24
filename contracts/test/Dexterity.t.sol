@@ -9,6 +9,18 @@ import { TokenB } from "./ERC20/TokenB.sol";
 import { TokenC } from "./ERC20/TokenC.sol";
 import { Test, console } from "forge-std/Test.sol";
 
+contract DexterityDeployTests is Test {
+  Dexterity dex;
+
+  function setUp() public {
+    dex = new Dexterity();
+  }
+
+  function test_deploy_creatorIsSet() public view {
+    assertEq(dex.creator(), address(this));
+  }
+}
+
 contract DexterityTests is Test {
   Dexterity dex;
   TokenA tokenA;
@@ -26,10 +38,6 @@ contract DexterityTests is Test {
     tokenAAddress = address(tokenA);
     tokenBAddress = address(tokenB);
     tokenCAddress = address(tokenC);
-  }
-
-  function test_deploy_creatorIsSet() public view {
-    assertEq(dex.creator(), address(this));
   }
 
   function test_createERC20Pair_fails_WithZeroTokenAddresses() public {
