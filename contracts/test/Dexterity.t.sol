@@ -120,4 +120,29 @@ contract DexterityTests is Test {
     shares = dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(400), uint256(4_000_000));
     assertEqUint(shares, 40_000);
   }
+
+  function test_withdrawERC20Only_fails_withUnhandledToken() public {
+    dex.createERC20OnlyPair(tokenAAddress, tokenBAddress);
+
+    vm.expectRevert(IDexterity.WithdrawERC20OnlyUnhandledToken.selector);
+    dex.withdrawERC20Only(address(0), address(0), uint256(1), uint256(1), uint256(1));
+  }
+
+  function test_withdrawERC20Only_fails_withInsufficientShares() public {
+    dex.createERC20OnlyPair(tokenAAddress, tokenBAddress);
+    dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(100), uint256(10_000));
+
+    vm.expectRevert(IDexterity.WithdrawERC20OnlyInsufficientShares.selector);
+    dex.withdrawERC20Only(tokenBAddress, tokenAAddress, uint256(2_000_000), uint256(0), uint256(0));
+  }
+
+  function test_withdrawERC20Only_fails_withMinAmountsTooHigh() public {
+    dex.createERC20OnlyPair(tokenAAddress, tokenBAddress);
+    dex.depositERC20Only(tokenAAddress, tokenBAddress, uint256(100), uint256(10_000));
+
+    vm.expectRevert(
+      abi.encodeWithSelector(IDexterity.WithdrawERC20OnlyMinAmountTooHigh.selector, tokenAAddress, uint256(100))
+    );
+    dex.withdrawERC20Only(tokenBAddress, tokenAAddress, uint256(1_000_000), uint256(0), uint256(200));
+  }
 }

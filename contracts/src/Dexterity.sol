@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { IDexterity } from "./interface/IDexterity.sol";
+import { IDexterity, PairFunctions } from "./interface/IDexterity.sol";
 import { Maths } from "./library/Maths.sol";
 
 using Maths for uint256;
+using PairFunctions for IDexterity.ERC20Pair;
 
 contract Dexterity is IDexterity {
   address public immutable creator;
@@ -20,16 +21,14 @@ contract Dexterity is IDexterity {
     require(address(token0) != address(0) && address(token1) != address(0), CreateERC20OnlyPairZeroAddress());
     require(address(token0) != address(token1), CreateERC20OnlyPairSameAddress());
 
-    (address lesserToken, address greaterToken) = token0 < token1 ? (token0, token1) : (token1, token0);
-
-    pairId = _computeERC20OnlyPairId(lesserToken, greaterToken);
+    pairId = _computeERC20OnlyPairId(token0, token1);
 
     ERC20Pair storage pair = erc20Pairs[pairId];
 
     require(pair.token0 == address(0) && pair.token1 == address(0), CreateERC20OnlyPairAlreadyExists());
 
-    pair.token0 = lesserToken;
-    pair.token1 = greaterToken;
+    pair.token0 = token0;
+    pair.token1 = token1;
 
     emit ERC20OnlyPairCreated(token0, token1, pairId);
   }
@@ -55,11 +54,28 @@ contract Dexterity is IDexterity {
     require(token0Amount > 0 && token1Amount > 0, DepositERC20OnlyInsufficientAmount());
     require(erc20Pairs[_computeERC20OnlyPairId(token0, token1)].token0 != address(0), DepositERC20OnlyUnhandledToken());
 
+    // NOTE: There is no transfer done here, we'll see later
     shares = (token0Amount * token1Amount).sqrt();
   }
 
+  function withdrawERC20Only(
+    address token0,
+    address token1,
+    uint256 sharesToBurn,
+    uint256 minToken0Amount,
+    uint256 minToken1Amount
+  ) external override {
+    IDexterity.ERC20Pair storage pair = erc20Pairs[_computeERC20OnlyPairId(token0, token1)];
+
+    require(pair.exists(), WithdrawERC20OnlyUnhandledToken());
+    // require(holderToShares[msg.sender] >= sharesToBurn, WithdrawERC20OnlyInsufficientShares());
+    revert WithdrawERC20OnlyInsufficientShares();
+  }
+
   function _computeERC20OnlyPairId(address token0, address token1) private pure returns (uint256) {
-    return uint256(keccak256(abi.encodePacked(token0, token1)));
+    (address lesserToken, address greaterToken) = token0 < token1 ? (token0, token1) : (token1, token0);
+
+    return uint256(keccak256(abi.encodePacked(lesserToken, greaterToken)));
   }
 
   function _computeERC20EtherPairId(address token) private pure returns (uint256) {
