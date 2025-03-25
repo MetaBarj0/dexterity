@@ -100,10 +100,10 @@ contract DepositTests is DexterityTests {
   }
 
   function test_deposit_succeeds_withCorrectAmounts() public {
-    tokenA.mintFor(alice, 10_000);
-    tokenB.mintFor(alice, 10_000);
+    tokenA.mintFor(alice, 3);
+    tokenB.mintFor(alice, 6);
 
-    startHoax(alice, 10 ether);
+    vm.startPrank(alice);
 
     IERC20(tokenA).approve(address(dex), 3);
     IERC20(tokenB).approve(address(dex), 6);
@@ -118,8 +118,8 @@ contract DepositTests is DexterityTests {
 
     IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
 
-    assertEq(tokenA.balanceOf(alice), 10_000 - 3);
-    assertEq(tokenB.balanceOf(alice), 10_000 - 6);
+    assertEq(tokenA.balanceOf(alice), 0);
+    assertEq(tokenB.balanceOf(alice), 0);
     assertEq(poolAB.firstReserve, 3);
     assertEq(poolAB.secondReserve, 6);
 
