@@ -12,13 +12,13 @@ test:
 	@forge test
 
 testv:
-	@forge test -vv
+	@forge test -vvv
 
 watch:
 	@forge test -w
 
 watchv:
-	@forge test -w -vv
+	@forge test -w -vvv
 
 coverage:
 	@forge coverage

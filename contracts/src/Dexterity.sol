@@ -1,84 +1,65 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { IDexterity, PairFunctions } from "./interface/IDexterity.sol";
+import { IDexterity } from "./interface/IDexterity.sol";
 import { Maths } from "./library/Maths.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 using Maths for uint256;
-using PairFunctions for IDexterity.ERC20Pair;
 
 contract Dexterity is IDexterity {
-  address public immutable creator;
+  address private immutable creator_;
 
-  mapping(uint256 pairId => ERC20Pair pair) public erc20Pairs;
-  mapping(uint256 pairId => address token) public erc20EtherPairs;
+  mapping(uint256 poolId => Pool) private pools_;
 
   constructor() {
-    creator = msg.sender;
+    creator_ = msg.sender;
   }
 
-  function createERC20OnlyPair(address token0, address token1) external override returns (uint256 pairId) {
-    require(address(token0) != address(0) && address(token1) != address(0), CreateERC20OnlyPairZeroAddress());
-    require(address(token0) != address(token1), CreateERC20OnlyPairSameAddress());
-
-    pairId = _computeERC20OnlyPairId(token0, token1);
-
-    ERC20Pair storage pair = erc20Pairs[pairId];
-
-    require(pair.token0 == address(0) && pair.token1 == address(0), CreateERC20OnlyPairAlreadyExists());
-
-    pair.token0 = token0;
-    pair.token1 = token1;
-
-    emit ERC20OnlyPairCreated(token0, token1, pairId);
+  function creator() public view returns (address) {
+    return creator_;
   }
 
-  function createERC20EtherPair(address token) external override returns (uint256 pairId) {
-    require(token != address(0), CreateERC20EtherPairZeroAddress());
+  function getPool(address firstToken, address secondToken) external view returns (Pool memory) {
+    uint256 poolId = computePoolId_(firstToken, secondToken);
 
-    pairId = _computeERC20EtherPairId(token);
-
-    require(erc20EtherPairs[pairId] == address(0), CreateERC20EtherPairAlreadyExists());
-
-    erc20EtherPairs[pairId] = token;
-
-    emit ERC20EtherPairCreated(address(token), pairId);
+    return pools_[poolId];
   }
 
-  function depositERC20Only(address token0, address token1, uint256 token0Amount, uint256 token1Amount)
+  function createPool(address firstToken, address secondToken) external override {
+    require(firstToken != address(0) && secondToken != address(0), CreatePoolZeroAddress());
+    require(firstToken != secondToken, CreatePoolSameAddress());
+
+    uint256 poolId = computePoolId_(firstToken, secondToken);
+    require(pools_[poolId].firstToken == address(0), PoolAlreadyExists());
+
+    pools_[poolId] = Pool({ firstToken: firstToken, secondToken: secondToken, firstReserve: 0, secondReserve: 0 });
+
+    emit PoolCreated(firstToken, secondToken, poolId);
+  }
+
+  function deposit(address firstToken, address secondToken, uint128 firstAmount, uint128 secondAmount)
     external
-    view
     override
-    returns (uint256 shares)
   {
-    require(token0Amount > 0 && token1Amount > 0, DepositERC20OnlyInsufficientAmount());
-    require(erc20Pairs[_computeERC20OnlyPairId(token0, token1)].token0 != address(0), DepositERC20OnlyUnhandledToken());
+    require(firstToken != address(0) && secondToken != address(0), DepositZeroAddress());
+    require(firstAmount > 0 && secondAmount > 0, DepositInvalidAmount());
 
-    // NOTE: There is no transfer done here, we'll see later
-    shares = (token0Amount * token1Amount).sqrt();
+    IERC20(firstToken).transferFrom(msg.sender, address(this), firstAmount);
+    IERC20(secondToken).transferFrom(msg.sender, address(this), secondAmount);
+
+    uint256 poolId = computePoolId_(firstToken, secondToken);
+    Pool storage pool = pools_[poolId];
+    pool.firstReserve += firstAmount;
+    pool.secondReserve += secondAmount;
+
+    emit Deposited(firstToken, secondToken, firstAmount, secondAmount);
   }
 
-  function withdrawERC20Only(
-    address token0,
-    address token1,
-    uint256 sharesToBurn,
-    uint256 minToken0Amount,
-    uint256 minToken1Amount
-  ) external override {
-    IDexterity.ERC20Pair storage pair = erc20Pairs[_computeERC20OnlyPairId(token0, token1)];
+  function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
+    (address lesserPool, address greaterPool) =
+      firstToken < secondToken ? (firstToken, secondToken) : (secondToken, firstToken);
 
-    require(pair.exists(), WithdrawERC20OnlyUnhandledToken());
-    // require(holderToShares[msg.sender] >= sharesToBurn, WithdrawERC20OnlyInsufficientShares());
-    revert WithdrawERC20OnlyInsufficientShares();
-  }
-
-  function _computeERC20OnlyPairId(address token0, address token1) private pure returns (uint256) {
-    (address lesserToken, address greaterToken) = token0 < token1 ? (token0, token1) : (token1, token0);
-
-    return uint256(keccak256(abi.encodePacked(lesserToken, greaterToken)));
-  }
-
-  function _computeERC20EtherPairId(address token) private pure returns (uint256) {
-    return uint256(keccak256(abi.encodePacked(token)));
+    return uint256(keccak256(abi.encodePacked(lesserPool, greaterPool)));
   }
 }
