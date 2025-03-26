@@ -240,5 +240,15 @@ contract SwapTests is DexterityTests {
     dex.swap(address(tokenB), 0, address(tokenA));
   }
 
-  function test_swap_forwardToUniswapv2_withUnsupportedPair() public { }
+  function test_swap_forwardToUniswapv2_withUnsupportedPairAndFails() public {
+    vm.makePersistent(address(dex));
+
+    vm.createSelectFork(vm.envString("MAINNET_URL"));
+    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+
+    vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
+    dex.swap(address(tokenA), 1000, address(tokenB));
+
+    vm.revokePersistent(address(dex));
+  }
 }

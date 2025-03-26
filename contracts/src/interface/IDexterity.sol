@@ -16,6 +16,7 @@ interface IDexterity {
   error WithdrawNotEnoughShares();
   error SwapSameToken();
   error SwapInvalidAmount();
+  error SwapUniswapForwardFailure();
 
   event PoolCreated(address indexed firstToken, address indexed secondToken, uint256 indexed poolIndex);
   event Deposited(address indexed firstToken, address indexed secondToken, uint256 firstAmount, uint256 secondAmount);

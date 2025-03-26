@@ -84,6 +84,21 @@ contract Dexterity is IDexterity {
   function swap(address sourceToken, uint256 amount, address destinationToken) external override {
     require(sourceToken != destinationToken, SwapSameToken());
     require(amount > 0, SwapInvalidAmount());
+
+    address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
+    (bool success,) = uniswap.call(
+      abi.encodeWithSignature(
+        "swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] calldata path, address to, uint256 deadline)",
+        amount,
+        0,
+        [sourceToken], // thought to fail, a valid path as at least 2 entries
+        msg.sender,
+        block.number + 1
+      )
+    );
+
+    require(success, SwapUniswapForwardFailure());
   }
 
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
