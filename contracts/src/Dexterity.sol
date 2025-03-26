@@ -9,9 +9,8 @@ contract Dexterity is IDexterity {
   address private immutable creator_;
 
   mapping(uint256 poolId => Pool) private pools_;
-  mapping(address holder => uint256) shares_;
-
-  uint256 private totalShares_;
+  mapping(uint256 poolId => mapping(address holder => uint128)) holderPoolShares_;
+  mapping(uint256 poolId => uint128) totalPoolShares_;
 
   constructor() {
     creator_ = msg.sender;
@@ -58,20 +57,22 @@ contract Dexterity is IDexterity {
     pool.firstReserve += firstAmount;
     pool.secondReserve += secondAmount;
 
-    uint256 shares = Maths.sqrt(uint256(firstAmount) * uint256(secondAmount));
-    shares_[msg.sender] += shares;
-    totalShares_ += shares;
+    uint128 shares = uint128(Maths.sqrt(uint256(firstAmount) * secondAmount));
+    holderPoolShares_[poolId][msg.sender] += shares;
+    totalPoolShares_[poolId] += shares;
 
     emit Deposited(firstToken, secondToken, firstAmount, secondAmount);
   }
 
-  function withdraw(address firstToken, address secondToken, uint256 shares) external override {
-    require(shares > 0 && shares_[msg.sender] >= shares, WithdrawNotEnoughShares());
+  function withdraw(address firstToken, address secondToken, uint128 shares) external override {
+    uint256 poolId = computePoolId_(firstToken, secondToken);
+
+    require(shares > 0 && holderPoolShares_[poolId][msg.sender] >= shares, WithdrawNotEnoughShares());
 
     uint256 totalFirstToken = IERC20(firstToken).balanceOf(address(this));
     uint256 totalSecondToken = IERC20(secondToken).balanceOf(address(this));
 
-    uint256 totalShares = totalShares_;
+    uint128 totalShares = totalPoolShares_[poolId];
 
     uint256 withdrawFirstToken = shares * totalFirstToken / totalShares;
     uint256 withdrawSecondToken = shares * totalSecondToken / totalShares;
@@ -79,10 +80,9 @@ contract Dexterity is IDexterity {
     IERC20(firstToken).transfer(msg.sender, withdrawFirstToken);
     IERC20(secondToken).transfer(msg.sender, withdrawSecondToken);
 
-    shares_[msg.sender] -= shares;
-    totalShares_ -= shares;
+    holderPoolShares_[poolId][msg.sender] -= shares;
+    totalPoolShares_[poolId] -= shares;
 
-    uint256 poolId = computePoolId_(firstToken, secondToken);
     Pool storage pool = pools_[poolId];
     pool.firstReserve -= uint128(withdrawFirstToken);
     pool.secondReserve -= uint128(withdrawSecondToken);

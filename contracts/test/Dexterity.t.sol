@@ -100,21 +100,22 @@ contract DepositTests is DexterityTests {
   }
 
   function test_deposit_fails_forOverflowingAmounts() public {
-    uint128 a = type(uint128).max;
+    uint128 uint128max = type(uint128).max;
 
-    tokenA.mintFor(alice, a);
-    tokenA.mintFor(alice, a);
-    tokenB.mintFor(alice, a);
-    tokenB.mintFor(alice, a);
+    tokenA.mintFor(alice, uint256(uint128max) * 2);
+    tokenB.mintFor(alice, uint256(uint128max) * 2);
 
     vm.startPrank(alice);
-    tokenA.approve(address(dex), uint256(a) * 2);
-    tokenB.approve(address(dex), uint256(a) * 2);
+    tokenA.approve(address(dex), uint256(uint128max) * 2);
+    tokenB.approve(address(dex), uint256(uint128max) * 2);
 
-    depositAB(a, a);
+    depositAB(uint128max - 1, uint128max - 1);
 
     vm.expectRevert(IDexterity.DepositOverflowing.selector);
-    depositAB(a, a);
+    depositAB(uint128max, 1);
+
+    vm.expectRevert(IDexterity.DepositOverflowing.selector);
+    depositAB(1, uint128max);
 
     vm.stopPrank();
   }
