@@ -35,6 +35,10 @@ abstract contract DexterityTests is Test {
     dex.deposit(address(tokenA), address(tokenB), firstAmount, secondAmount);
   }
 
+  function withdrawAB(uint128 shares) internal {
+    dex.withdraw(address(tokenA), address(tokenB), shares);
+  }
+
   function expectEmitPoolCreatedAB() internal {
     vm.expectEmit(true, true, false, false);
     emit IDexterity.PoolCreated(address(tokenA), address(tokenB), 0);
@@ -156,7 +160,7 @@ contract WithdrawTests is DexterityTests {
 
     vm.startPrank(alice);
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
-    dex.withdraw(address(tokenA), address(tokenB), 1);
+    withdrawAB(1);
     vm.stopPrank();
 
     tokenA.mintFor(alice, 2);
@@ -164,13 +168,13 @@ contract WithdrawTests is DexterityTests {
 
     vm.startPrank(alice);
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
-    dex.withdraw(address(tokenA), address(tokenB), 3);
+    withdrawAB(3);
     vm.stopPrank();
   }
 
   function test_withdraw_fails_withZeroShare() public {
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
-    dex.withdraw(address(tokenA), address(tokenB), 0);
+    withdrawAB(0);
   }
 
   function test_withdraw_succeeds_whenSenderHasEnoughShares() public {
@@ -183,11 +187,11 @@ contract WithdrawTests is DexterityTests {
 
     depositAB(100_000, 1000);
 
-    dex.withdraw(address(tokenA), address(tokenB), 5000);
-    dex.withdraw(address(tokenA), address(tokenB), 5000);
+    withdrawAB(5000);
+    withdrawAB(5000);
 
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
-    dex.withdraw(address(tokenA), address(tokenB), 1);
+    withdrawAB(1);
     vm.stopPrank();
 
     IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
@@ -212,23 +216,15 @@ contract WithdrawTests is DexterityTests {
     tokenB.approve(address(dex), 100);
 
     depositAB(5000, 50);
-
-    vm.roll(block.number + 1);
-
-    dex.withdraw(address(tokenA), address(tokenB), 500);
+    withdrawAB(500);
     vm.stopPrank();
-
-    vm.roll(block.number + 1);
 
     vm.startPrank(bob);
     tokenA.approve(address(dex), 5000);
     tokenB.approve(address(dex), 50);
 
     depositAB(5000, 50);
-
-    vm.roll(block.number + 1);
-
-    dex.withdraw(address(tokenA), address(tokenB), 500);
+    withdrawAB(500);
     vm.stopPrank();
 
     IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
