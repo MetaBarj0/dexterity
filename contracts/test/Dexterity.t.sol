@@ -126,3 +126,23 @@ contract DepositTests is DexterityTests {
     vm.stopPrank();
   }
 }
+
+contract WithdrawTests is DexterityTests {
+  function test_withdraw_fails_whenSenderHasNotEnoughShares() public {
+    vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
+    dex.withdraw(address(tokenA), address(tokenB), 1);
+
+    vm.startPrank(alice);
+    vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
+    dex.withdraw(address(tokenA), address(tokenB), 1);
+    vm.stopPrank();
+
+    tokenA.mintFor(alice, 2);
+    tokenB.mintFor(alice, 2);
+
+    vm.startPrank(alice);
+    vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
+    dex.withdraw(address(tokenA), address(tokenB), 3);
+    vm.stopPrank();
+  }
+}

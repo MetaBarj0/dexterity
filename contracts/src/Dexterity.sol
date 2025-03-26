@@ -56,6 +56,10 @@ contract Dexterity is IDexterity {
     emit Deposited(firstToken, secondToken, firstAmount, secondAmount);
   }
 
+  function withdraw(address firstToken, address secondToken, uint256 shares) external override {
+    revert WithdrawNotEnoughShares();
+  }
+
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
     (address lesserPool, address greaterPool) =
       firstToken < secondToken ? (firstToken, secondToken) : (secondToken, firstToken);
