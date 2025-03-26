@@ -15,7 +15,7 @@ abstract contract DexterityTests is Test {
   TokenA internal tokenA;
   TokenB internal tokenB;
   address internal alice;
-  uint256 aliceKey;
+  address internal bob;
 
   function setUp() public {
     dex = new Dexterity();
@@ -24,6 +24,7 @@ abstract contract DexterityTests is Test {
     tokenB = new TokenB();
 
     alice = makeAddr("alice");
+    bob = makeAddr("bob");
   }
 
   function createPoolAB() internal {
@@ -193,6 +194,49 @@ contract WithdrawTests is DexterityTests {
 
     assertEq(tokenA.balanceOf(alice), 100_000);
     assertEq(tokenB.balanceOf(alice), 1000);
+    assertEq(tokenA.balanceOf(address(dex)), 0);
+    assertEq(tokenB.balanceOf(address(dex)), 0);
+    assertEq(poolAB.firstReserve, 0);
+    assertEq(poolAB.secondReserve, 0);
+  }
+
+  function test_withdraw_succeeeds_withDifferentHolders() public {
+    tokenA.mintFor(alice, 10_000);
+    tokenB.mintFor(alice, 100);
+
+    tokenA.mintFor(bob, 10_000);
+    tokenB.mintFor(bob, 100);
+
+    vm.startPrank(alice);
+    tokenA.approve(address(dex), 5000);
+    tokenB.approve(address(dex), 100);
+
+    depositAB(5000, 50);
+
+    vm.roll(block.number + 1);
+
+    dex.withdraw(address(tokenA), address(tokenB), 500);
+    vm.stopPrank();
+
+    vm.roll(block.number + 1);
+
+    vm.startPrank(bob);
+    tokenA.approve(address(dex), 5000);
+    tokenB.approve(address(dex), 50);
+
+    depositAB(5000, 50);
+
+    vm.roll(block.number + 1);
+
+    dex.withdraw(address(tokenA), address(tokenB), 500);
+    vm.stopPrank();
+
+    IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
+
+    assertEq(tokenA.balanceOf(alice), 10_000);
+    assertEq(tokenB.balanceOf(alice), 100);
+    assertEq(tokenA.balanceOf(bob), 10_000);
+    assertEq(tokenB.balanceOf(bob), 100);
     assertEq(tokenA.balanceOf(address(dex)), 0);
     assertEq(tokenB.balanceOf(address(dex)), 0);
     assertEq(poolAB.firstReserve, 0);
