@@ -15,7 +15,6 @@ local = "http://${ANVIL_HOST}:${ANVIL_PORT}"
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}" }
 
-
 [fmt]
 tab_width = 2
 bracket_spacing = true

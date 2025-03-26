@@ -26,23 +26,12 @@ contract Dexterity is IDexterity {
     return pools_[poolId];
   }
 
-  function createPool(address firstToken, address secondToken) external override {
-    require(firstToken != address(0) && secondToken != address(0), CreatePoolZeroAddress());
-    require(firstToken != secondToken, CreatePoolSameAddress());
-
-    uint256 poolId = computePoolId_(firstToken, secondToken);
-    require(pools_[poolId].firstToken == address(0), PoolAlreadyExists());
-
-    pools_[poolId] = Pool({ firstToken: firstToken, secondToken: secondToken, firstReserve: 0, secondReserve: 0 });
-
-    emit PoolCreated(firstToken, secondToken, poolId);
-  }
-
   function deposit(address firstToken, address secondToken, uint128 firstAmount, uint128 secondAmount)
     external
     override
   {
     require(firstToken != address(0) && secondToken != address(0), DepositZeroAddress());
+    require(firstToken != secondToken, DepositSameToken());
     require(firstAmount > 0 && secondAmount > 0, DepositInvalidAmount());
 
     uint256 poolId = computePoolId_(firstToken, secondToken);
@@ -53,6 +42,10 @@ contract Dexterity is IDexterity {
 
     IERC20(firstToken).transferFrom(msg.sender, address(this), firstAmount);
     IERC20(secondToken).transferFrom(msg.sender, address(this), secondAmount);
+
+    if (pool.firstReserve == 0) {
+      emit PoolCreated(firstToken, secondToken, poolId);
+    }
 
     pool.firstReserve += firstAmount;
     pool.secondReserve += secondAmount;
@@ -74,8 +67,8 @@ contract Dexterity is IDexterity {
 
     uint128 totalShares = totalPoolShares_[poolId];
 
-    uint256 withdrawFirstToken = shares * totalFirstToken / totalShares;
-    uint256 withdrawSecondToken = shares * totalSecondToken / totalShares;
+    uint256 withdrawFirstToken = (shares * totalFirstToken) / totalShares;
+    uint256 withdrawSecondToken = (shares * totalSecondToken) / totalShares;
 
     IERC20(firstToken).transfer(msg.sender, withdrawFirstToken);
     IERC20(secondToken).transfer(msg.sender, withdrawSecondToken);
@@ -86,6 +79,11 @@ contract Dexterity is IDexterity {
     Pool storage pool = pools_[poolId];
     pool.firstReserve -= uint128(withdrawFirstToken);
     pool.secondReserve -= uint128(withdrawSecondToken);
+  }
+
+  function swap(address sourceToken, uint256 amount, address destinationToken) external override {
+    require(sourceToken != destinationToken, SwapSameToken());
+    require(amount > 0, SwapInvalidAmount());
   }
 
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {

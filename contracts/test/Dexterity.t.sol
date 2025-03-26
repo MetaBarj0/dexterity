@@ -27,10 +27,6 @@ abstract contract DexterityTests is Test {
     bob = makeAddr("bob");
   }
 
-  function createPoolAB() internal {
-    dex.createPool(address(tokenA), address(tokenB));
-  }
-
   function depositAB(uint128 firstAmount, uint128 secondAmount) internal {
     dex.deposit(address(tokenA), address(tokenB), firstAmount, secondAmount);
   }
@@ -51,57 +47,32 @@ contract DeployTests is DexterityTests {
   }
 }
 
-contract PoolCreationTests is DexterityTests {
-  function test_createPool_fails_WithZeroTokenAddresses() public {
-    vm.expectRevert(IDexterity.CreatePoolZeroAddress.selector);
-    dex.createPool(address(0), address(0));
-
-    vm.expectRevert(IDexterity.CreatePoolZeroAddress.selector);
-    dex.createPool(address(tokenA), address(0));
-
-    vm.expectRevert(IDexterity.CreatePoolZeroAddress.selector);
-    dex.createPool(address(0), address(tokenA));
-  }
-
-  function test_createPool_fails_WithSameTokenAddress() public {
-    vm.expectRevert(IDexterity.CreatePoolSameAddress.selector);
-    dex.createPool(address(tokenA), address(tokenA));
-  }
-
-  function test_createPool_succeeds_WithValidTokenAddresses() public {
-    expectEmitPoolCreatedAB();
-    dex.createPool(address(tokenA), address(tokenB));
-  }
-
-  function test_createPool_fails_whenPoolAlreadyExists() public {
-    dex.createPool(address(tokenA), address(tokenB));
-
-    vm.expectRevert(IDexterity.PoolAlreadyExists.selector);
-    dex.createPool(address(tokenA), address(tokenB));
-  }
-}
-
 contract DepositTests is DexterityTests {
   function test_deposit_fails_withZeroAmount() public {
     vm.expectRevert(IDexterity.DepositInvalidAmount.selector);
-    depositAB(uint128(0), uint128(0));
+    depositAB(0, 0);
 
     vm.expectRevert(IDexterity.DepositInvalidAmount.selector);
-    depositAB(uint128(1000), uint128(0));
+    depositAB(1000, 0);
 
     vm.expectRevert(IDexterity.DepositInvalidAmount.selector);
-    depositAB(uint128(0), uint128(1000));
+    depositAB(0, 1000);
   }
 
   function test_deposit_fails_withZeroAddressForToken() public {
     vm.expectRevert(IDexterity.DepositZeroAddress.selector);
-    dex.deposit(address(0), address(0), uint128(0), uint128(0));
+    dex.deposit(address(0), address(0), 0, 0);
 
     vm.expectRevert(IDexterity.DepositZeroAddress.selector);
-    dex.deposit(address(tokenA), address(0), uint128(0), uint128(0));
+    dex.deposit(address(tokenA), address(0), 0, 0);
 
     vm.expectRevert(IDexterity.DepositZeroAddress.selector);
-    dex.deposit(address(0), address(tokenA), uint128(0), uint128(0));
+    dex.deposit(address(0), address(tokenA), 0, 0);
+  }
+
+  function test_deposit_fails_withSameToken() public {
+    vm.expectRevert(IDexterity.DepositSameToken.selector);
+    dex.deposit(address(tokenA), address(tokenA), 1, 2);
   }
 
   function test_deposit_fails_forOverflowingAmounts() public {
@@ -125,6 +96,21 @@ contract DepositTests is DexterityTests {
     vm.stopPrank();
   }
 
+  function test_deposit_succeeds_andEmitPoolCreatedOnFirstDeposit() public {
+    tokenA.mintFor(alice, 3);
+    tokenB.mintFor(alice, 6);
+
+    vm.startPrank(alice);
+
+    IERC20(tokenA).approve(address(dex), 3);
+    IERC20(tokenB).approve(address(dex), 6);
+
+    expectEmitPoolCreatedAB();
+    depositAB(2, 5);
+
+    vm.stopPrank();
+  }
+
   function test_deposit_succeeds_withCorrectAmounts() public {
     tokenA.mintFor(alice, 3);
     tokenB.mintFor(alice, 6);
@@ -136,11 +122,11 @@ contract DepositTests is DexterityTests {
 
     vm.expectEmit();
     emit IDexterity.Deposited(address(tokenA), address(tokenB), 1, 2);
-    depositAB(uint128(1), uint128(2));
+    depositAB(1, 2);
 
     vm.expectEmit();
     emit IDexterity.Deposited(address(tokenA), address(tokenB), 2, 4);
-    depositAB(uint128(2), uint128(4));
+    depositAB(2, 4);
 
     IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
 
@@ -238,4 +224,21 @@ contract WithdrawTests is DexterityTests {
     assertEq(poolAB.firstReserve, 0);
     assertEq(poolAB.secondReserve, 0);
   }
+}
+
+contract SwapTests is DexterityTests {
+  function test_swap_fails_withSameToken() public {
+    vm.expectRevert(IDexterity.SwapSameToken.selector);
+    dex.swap(address(tokenA), 0, address(tokenA));
+  }
+
+  function test_swap_fails_ifZeroAmount() public {
+    vm.expectRevert(IDexterity.SwapInvalidAmount.selector);
+    dex.swap(address(tokenA), 0, address(tokenB));
+
+    vm.expectRevert(IDexterity.SwapInvalidAmount.selector);
+    dex.swap(address(tokenB), 0, address(tokenA));
+  }
+
+  function test_swap_forwardToUniswapv2_withUnsupportedPair() public { }
 }
