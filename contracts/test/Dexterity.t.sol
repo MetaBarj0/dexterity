@@ -99,6 +99,26 @@ contract DepositTests is DexterityTests {
     dex.deposit(address(0), address(tokenA), uint128(0), uint128(0));
   }
 
+  function test_deposit_fails_forOverflowingAmounts() public {
+    uint128 a = type(uint128).max;
+
+    tokenA.mintFor(alice, a);
+    tokenA.mintFor(alice, a);
+    tokenB.mintFor(alice, a);
+    tokenB.mintFor(alice, a);
+
+    vm.startPrank(alice);
+    tokenA.approve(address(dex), uint256(a) * 2);
+    tokenB.approve(address(dex), uint256(a) * 2);
+
+    depositAB(a, a);
+
+    vm.expectRevert(IDexterity.DepositOverflowing.selector);
+    depositAB(a, a);
+
+    vm.stopPrank();
+  }
+
   function test_deposit_succeeds_withCorrectAmounts() public {
     tokenA.mintFor(alice, 3);
     tokenB.mintFor(alice, 6);
@@ -144,5 +164,37 @@ contract WithdrawTests is DexterityTests {
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
     dex.withdraw(address(tokenA), address(tokenB), 3);
     vm.stopPrank();
+  }
+
+  function test_withdraw_fails_withZeroShare() public {
+    vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
+    dex.withdraw(address(tokenA), address(tokenB), 0);
+  }
+
+  function test_withdraw_succeeds_whenSenderHasEnoughShares() public {
+    tokenA.mintFor(alice, 100_000);
+    tokenB.mintFor(alice, 1000);
+
+    vm.startPrank(alice);
+    tokenA.approve(address(dex), 100_000);
+    tokenB.approve(address(dex), 1000);
+
+    depositAB(100_000, 1000);
+
+    dex.withdraw(address(tokenA), address(tokenB), 5000);
+    dex.withdraw(address(tokenA), address(tokenB), 5000);
+
+    vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
+    dex.withdraw(address(tokenA), address(tokenB), 1);
+    vm.stopPrank();
+
+    IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
+
+    assertEq(tokenA.balanceOf(alice), 100_000);
+    assertEq(tokenB.balanceOf(alice), 1000);
+    assertEq(tokenA.balanceOf(address(dex)), 0);
+    assertEq(tokenB.balanceOf(address(dex)), 0);
+    assertEq(poolAB.firstReserve, 0);
+    assertEq(poolAB.secondReserve, 0);
   }
 }

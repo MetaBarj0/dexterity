@@ -15,6 +15,7 @@ interface IDexterity {
   error PoolAlreadyExists();
   error DepositInvalidAmount();
   error DepositZeroAddress();
+  error DepositOverflowing();
   error WithdrawNotEnoughShares();
 
   event PoolCreated(address indexed firstToken, address indexed secondToken, uint256 indexed poolIndex);
