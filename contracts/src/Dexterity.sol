@@ -85,11 +85,22 @@ contract Dexterity is IDexterity {
     require(sourceToken != destinationToken, SwapSameToken());
     require(amount > 0, SwapInvalidAmount());
 
+    forwardSwapToUniswapRouter_(sourceToken, amount);
+  }
+
+  function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
+    (address lesserPool, address greaterPool) =
+      firstToken < secondToken ? (firstToken, secondToken) : (secondToken, firstToken);
+
+    return uint256(keccak256(abi.encodePacked(lesserPool, greaterPool)));
+  }
+
+  function forwardSwapToUniswapRouter_(address sourceToken, uint256 amount) internal {
     address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
     (bool success,) = uniswap.call(
       abi.encodeWithSignature(
-        "swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] calldata path, address to, uint256 deadline)",
+        "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
         amount,
         0,
         [sourceToken], // thought to fail, a valid path as at least 2 entries
@@ -99,12 +110,5 @@ contract Dexterity is IDexterity {
     );
 
     require(success, SwapUniswapForwardFailure());
-  }
-
-  function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
-    (address lesserPool, address greaterPool) =
-      firstToken < secondToken ? (firstToken, secondToken) : (secondToken, firstToken);
-
-    return uint256(keccak256(abi.encodePacked(lesserPool, greaterPool)));
   }
 }
