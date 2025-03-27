@@ -59,6 +59,17 @@ abstract contract DexterityTests is Test {
 
     vm.stopPrank();
   }
+
+  function assertPoolReserveABEq(uint128 reserveA, uint128 reserveB) internal view {
+    IDexterity.Pool memory pool = dex.getPool(address(tokenA), address(tokenB));
+
+    (uint128 poolReserveA, uint128 poolReserveB) = pool.firstToken == address(tokenA)
+      ? (pool.firstReserve, pool.secondReserve)
+      : (pool.secondReserve, pool.firstReserve);
+
+    assertEq(poolReserveB, reserveB);
+    assertEq(poolReserveA, reserveA);
+  }
 }
 
 contract DeployTests is DexterityTests {
@@ -129,6 +140,8 @@ contract DepositTests is DexterityTests {
     depositAB(2, 5);
 
     vm.stopPrank();
+
+    assertPoolReserveABEq(2, 5);
   }
 
   function test_deposit_succeeds_withCorrectAmounts() public {
@@ -148,12 +161,10 @@ contract DepositTests is DexterityTests {
     emit IDexterity.Deposited(address(tokenA), address(tokenB), 2, 4);
     depositAB(2, 4);
 
-    IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
-
     assertEq(tokenA.balanceOf(alice), 0);
     assertEq(tokenB.balanceOf(alice), 0);
-    assertEq(poolAB.firstReserve, 3);
-    assertEq(poolAB.secondReserve, 6);
+
+    assertPoolReserveABEq(3, 6);
 
     vm.stopPrank();
   }
@@ -200,14 +211,12 @@ contract WithdrawTests is DexterityTests {
     withdrawAB(2001);
     vm.stopPrank();
 
-    IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
-
     assertEq(tokenA.balanceOf(alice), 80_000);
     assertEq(tokenB.balanceOf(alice), 800);
     assertEq(tokenA.balanceOf(address(dex)), 20_000);
     assertEq(tokenB.balanceOf(address(dex)), 200);
-    assertEq(poolAB.firstReserve, 20_000);
-    assertEq(poolAB.secondReserve, 200);
+
+    assertPoolReserveABEq(20_000, 200);
   }
 
   function test_withdraw_succeeeds_withDifferentHolders() public {
@@ -233,16 +242,14 @@ contract WithdrawTests is DexterityTests {
     withdrawAB(500);
     vm.stopPrank();
 
-    IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
-
     assertEq(tokenA.balanceOf(alice), 10_000);
     assertEq(tokenB.balanceOf(alice), 100);
     assertEq(tokenA.balanceOf(bob), 10_000);
     assertEq(tokenB.balanceOf(bob), 100);
     assertEq(tokenA.balanceOf(address(dex)), 0);
     assertEq(tokenB.balanceOf(address(dex)), 0);
-    assertEq(poolAB.firstReserve, 0);
-    assertEq(poolAB.secondReserve, 0);
+
+    assertPoolReserveABEq(0, 0);
   }
 }
 

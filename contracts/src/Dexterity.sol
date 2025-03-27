@@ -44,6 +44,9 @@ contract Dexterity is IDexterity {
     IERC20(secondToken).transferFrom(msg.sender, address(this), secondAmount);
 
     if (pool.firstReserve == 0) {
+      pool.firstToken = firstToken;
+      pool.secondToken = secondToken;
+
       emit PoolCreated(firstToken, secondToken, poolId);
     }
 

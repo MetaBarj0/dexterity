@@ -5,6 +5,8 @@ interface IDexterity {
   struct Pool {
     uint128 firstReserve;
     uint128 secondReserve;
+    address firstToken;
+    address secondToken;
   }
 
   error PoolUnexisting();
