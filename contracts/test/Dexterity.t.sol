@@ -12,10 +12,13 @@ import { Test, console } from "forge-std/Test.sol";
 
 abstract contract DexterityTests is Test {
   IDexterity internal dex;
+
   TokenA internal tokenA;
   TokenB internal tokenB;
+
   address internal alice;
   address internal bob;
+  address internal chuck;
 
   function setUp() public {
     dex = new Dexterity();
@@ -25,6 +28,7 @@ abstract contract DexterityTests is Test {
 
     alice = makeAddr("alice");
     bob = makeAddr("bob");
+    chuck = makeAddr("chuck");
   }
 
   function depositAB(uint128 firstAmount, uint128 secondAmount) internal {
@@ -38,6 +42,22 @@ abstract contract DexterityTests is Test {
   function expectEmitPoolCreatedAB() internal {
     vm.expectEmit(true, true, false, false);
     emit IDexterity.PoolCreated(address(tokenA), address(tokenB), 0);
+  }
+
+  function mintTokenABFor(address holder, uint256 amountA, uint256 amountB) internal {
+    tokenA.mintFor(holder, amountA);
+    tokenB.mintFor(holder, amountB);
+  }
+
+  function holderDepositAB(address holder, uint128 amountA, uint128 amountB) internal {
+    vm.startPrank(holder);
+
+    tokenA.approve(address(dex), amountA);
+    tokenB.approve(address(dex), amountB);
+
+    dex.deposit(address(tokenA), address(tokenB), amountA, amountB);
+
+    vm.stopPrank();
   }
 }
 
@@ -239,6 +259,46 @@ contract SwapTests is DexterityTests {
     vm.expectRevert(IDexterity.SwapInvalidAmount.selector);
     dex.swap(address(tokenB), 0, address(tokenA));
   }
+
+  function test_swap_fails_forPoolWithInsufficientLiquidity() public {
+    mintTokenABFor(alice, 1, 1);
+    holderDepositAB(alice, 1, 1);
+
+    vm.expectRevert(IDexterity.SwapInsufficientLiquidity.selector);
+    dex.swap(address(tokenA), 2, address(tokenB));
+  }
+
+  // function test_swap_succeeds_withSmallVolume() public {
+  //   mintTokenABFor({ holder: alice, amountA: 8000, amountB: 800_000 });
+  //   mintTokenABFor({ holder: bob, amountA: 2000, amountB: 200_000 });
+
+  //   holderDepositAB({ holder: alice, amountA: 8000, amountB: 800_000 }); // 80k shares for alice
+  //   holderDepositAB({ holder: bob, amountA: 2000, amountB: 200_000 }); // 20k shares for bob
+
+  //   mintTokenABFor({ holder: chuck, amountA: 1000, amountB: 100_300 }); // swapper, fee model is 0.03%
+
+  //   IDexterity.Pool memory pool = dex.getPool(address(tokenA), address(tokenB));
+
+  //   uint128 oldFirstReserve = pool.firstReserve;
+  //   uint128 oldSecondReserve = pool.secondReserve;
+  //   uint256 oldK = oldFirstReserve * oldSecondReserve;
+
+  //   vm.startPrank(chuck);
+  //   vm.expectEmit();
+  //   emit IDexterity.Swapped(chuck, address(tokenB), address(tokenA), 100_300, 911);
+
+  //   dex.swap({ sourceToken: address(tokenB), amount: 100_000, destinationToken: address(tokenA) });
+
+  //   uint128 newFirstReserve = pool.firstReserve;
+  //   uint128 newSecondReserve = pool.secondReserve;
+  //   uint256 newK = newFirstReserve * newSecondReserve;
+
+  //   vm.stopPrank();
+
+  //   assertNotEq(oldFirstReserve, newFirstReserve);
+  //   assertNotEq(oldSecondReserve, newSecondReserve);
+  //   assertGe(newK, oldK);
+  // }
 
   function test_swap_forwardToUniswapv2_withUnsupportedPairAndFails() public {
     vm.makePersistent(address(dex));

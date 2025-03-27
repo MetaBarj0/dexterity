@@ -85,14 +85,24 @@ contract Dexterity is IDexterity {
     require(sourceToken != destinationToken, SwapSameToken());
     require(amount > 0, SwapInvalidAmount());
 
-    forwardSwapToUniswapRouter_(sourceToken, amount);
+    uint256 poolId = computePoolId_(sourceToken, destinationToken);
+    uint256 totalPoolShare = totalPoolShares_[poolId];
+
+    // a pool with 0 share is considered to not be created thus, not supported by dexterity
+    require(totalPoolShare == 0 || totalPoolShare >= amount, SwapInsufficientLiquidity());
+
+    Pool memory pool = pools_[poolId];
+
+    if (pool.firstReserve == 0) {
+      forwardSwapToUniswapRouter_(sourceToken, amount);
+      return;
+    }
+
+    emit Swapped(msg.sender, sourceToken, destinationToken, 100_300, 911);
   }
 
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
-    (address lesserPool, address greaterPool) =
-      firstToken < secondToken ? (firstToken, secondToken) : (secondToken, firstToken);
-
-    return uint256(keccak256(abi.encodePacked(lesserPool, greaterPool)));
+    return uint256(keccak256(abi.encodePacked(bytes20(firstToken) ^ bytes20(secondToken))));
   }
 
   function forwardSwapToUniswapRouter_(address sourceToken, uint256 amount) internal {

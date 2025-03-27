@@ -17,9 +17,17 @@ interface IDexterity {
   error SwapSameToken();
   error SwapInvalidAmount();
   error SwapUniswapForwardFailure();
+  error SwapInsufficientLiquidity();
 
-  event PoolCreated(address indexed firstToken, address indexed secondToken, uint256 indexed poolIndex);
+  event PoolCreated(address indexed firstToken, address indexed secondToken, uint256 indexed poolId);
   event Deposited(address indexed firstToken, address indexed secondToken, uint256 firstAmount, uint256 secondAmount);
+  event Swapped(
+    address indexed sender,
+    address indexed firstToken,
+    address indexed secondToken,
+    uint256 firstAmount,
+    uint256 secondAmount
+  );
 
   function creator() external view returns (address);
   function getPool(address firstToken, address secondToken) external view returns (Pool memory);
