@@ -173,21 +173,21 @@ contract WithdrawTests is DexterityTests {
 
     depositAB(100_000, 1000);
 
-    withdrawAB(5000);
-    withdrawAB(5000);
+    withdrawAB(7000);
+    withdrawAB(1000);
 
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
-    withdrawAB(1);
+    withdrawAB(2001);
     vm.stopPrank();
 
     IDexterity.Pool memory poolAB = dex.getPool(address(tokenA), address(tokenB));
 
-    assertEq(tokenA.balanceOf(alice), 100_000);
-    assertEq(tokenB.balanceOf(alice), 1000);
-    assertEq(tokenA.balanceOf(address(dex)), 0);
-    assertEq(tokenB.balanceOf(address(dex)), 0);
-    assertEq(poolAB.firstReserve, 0);
-    assertEq(poolAB.secondReserve, 0);
+    assertEq(tokenA.balanceOf(alice), 80_000);
+    assertEq(tokenB.balanceOf(alice), 800);
+    assertEq(tokenA.balanceOf(address(dex)), 20_000);
+    assertEq(tokenB.balanceOf(address(dex)), 200);
+    assertEq(poolAB.firstReserve, 20_000);
+    assertEq(poolAB.secondReserve, 200);
   }
 
   function test_withdraw_succeeeds_withDifferentHolders() public {
