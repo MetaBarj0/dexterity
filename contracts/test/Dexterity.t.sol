@@ -205,16 +205,23 @@ contract WithdrawTests is DexterityTests {
     tokenB.mintFor(alice, 1000);
 
     vm.startPrank(alice);
+
     tokenA.approve(address(dex), 100_000);
     tokenB.approve(address(dex), 1000);
 
     depositAB(100_000, 1000);
 
+    vm.expectEmit();
+    emit IDexterity.Withdrawn(address(tokenA), address(tokenB), 7000, 70_000, 700);
     withdrawAB(7000);
+
+    vm.expectEmit();
+    emit IDexterity.Withdrawn(address(tokenA), address(tokenB), 1000, 10_000, 100);
     withdrawAB(1000);
 
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
     withdrawAB(2001);
+
     vm.stopPrank();
 
     assertEq(tokenA.balanceOf(alice), 80_000);
@@ -233,19 +240,23 @@ contract WithdrawTests is DexterityTests {
     tokenB.mintFor(bob, 100);
 
     vm.startPrank(alice);
+
     tokenA.approve(address(dex), 5000);
     tokenB.approve(address(dex), 100);
 
     depositAB(5000, 50);
     withdrawAB(500);
+
     vm.stopPrank();
 
     vm.startPrank(bob);
+
     tokenA.approve(address(dex), 5000);
     tokenB.approve(address(dex), 50);
 
     depositAB(5000, 50);
     withdrawAB(500);
+
     vm.stopPrank();
 
     assertEq(tokenA.balanceOf(alice), 10_000);

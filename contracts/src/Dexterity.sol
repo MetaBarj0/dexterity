@@ -70,8 +70,8 @@ contract Dexterity is IDexterity {
 
     uint128 poolShares = totalPoolShares_[poolId];
 
-    uint256 firstTokenAmount = (shares * poolFirstTokenBalance) / poolShares;
-    uint256 secondTokenAmount = (shares * poolSecondTokenBalance) / poolShares;
+    uint128 firstTokenAmount = uint128((uint256(shares) * poolFirstTokenBalance) / poolShares);
+    uint128 secondTokenAmount = uint128((uint256(shares) * poolSecondTokenBalance) / poolShares);
 
     IERC20(firstToken).transfer(msg.sender, firstTokenAmount);
     IERC20(secondToken).transfer(msg.sender, secondTokenAmount);
@@ -82,6 +82,8 @@ contract Dexterity is IDexterity {
     Pool storage pool = pools_[poolId];
     pool.firstReserve -= uint128(firstTokenAmount);
     pool.secondReserve -= uint128(secondTokenAmount);
+
+    emit Withdrawn(firstToken, secondToken, shares, firstTokenAmount, secondTokenAmount);
   }
 
   function swap(address sourceToken, uint128 amount, address destinationToken) external override {
@@ -102,7 +104,7 @@ contract Dexterity is IDexterity {
     }
 
     uint128 reserveOut = destinationToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
-    uint128 amountIn = amount * 997;
+    uint128 amountIn = amount * 997; // hardcoded fee model, could be part of a pool definition
     uint128 numerator = reserveOut * amountIn;
     uint128 denominator = reserveIn * 1000 + amountIn;
     uint128 amountOut = numerator / denominator;
