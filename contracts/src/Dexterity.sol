@@ -65,43 +65,60 @@ contract Dexterity is IDexterity {
 
     require(shares > 0 && holderPoolShares_[poolId][msg.sender] >= shares, WithdrawNotEnoughShares());
 
-    uint256 totalFirstToken = IERC20(firstToken).balanceOf(address(this));
-    uint256 totalSecondToken = IERC20(secondToken).balanceOf(address(this));
+    uint256 poolFirstTokenBalance = IERC20(firstToken).balanceOf(address(this));
+    uint256 poolSecondTokenBalance = IERC20(secondToken).balanceOf(address(this));
 
-    uint128 totalShares = totalPoolShares_[poolId];
+    uint128 poolShares = totalPoolShares_[poolId];
 
-    uint256 withdrawFirstToken = (shares * totalFirstToken) / totalShares;
-    uint256 withdrawSecondToken = (shares * totalSecondToken) / totalShares;
+    uint256 firstTokenAmount = (shares * poolFirstTokenBalance) / poolShares;
+    uint256 secondTokenAmount = (shares * poolSecondTokenBalance) / poolShares;
 
-    IERC20(firstToken).transfer(msg.sender, withdrawFirstToken);
-    IERC20(secondToken).transfer(msg.sender, withdrawSecondToken);
+    IERC20(firstToken).transfer(msg.sender, firstTokenAmount);
+    IERC20(secondToken).transfer(msg.sender, secondTokenAmount);
 
     holderPoolShares_[poolId][msg.sender] -= shares;
     totalPoolShares_[poolId] -= shares;
 
     Pool storage pool = pools_[poolId];
-    pool.firstReserve -= uint128(withdrawFirstToken);
-    pool.secondReserve -= uint128(withdrawSecondToken);
+    pool.firstReserve -= uint128(firstTokenAmount);
+    pool.secondReserve -= uint128(secondTokenAmount);
   }
 
-  function swap(address sourceToken, uint256 amount, address destinationToken) external override {
+  function swap(address sourceToken, uint128 amount, address destinationToken) external override {
     require(sourceToken != destinationToken, SwapSameToken());
     require(amount > 0, SwapInvalidAmount());
 
     uint256 poolId = computePoolId_(sourceToken, destinationToken);
-    uint256 totalPoolShare = totalPoolShares_[poolId];
+    Pool storage pool = pools_[poolId];
 
-    // a pool with 0 share is considered to not be created thus, not supported by dexterity
-    require(totalPoolShare == 0 || totalPoolShare >= amount, SwapInsufficientLiquidity());
+    uint128 reserveIn = sourceToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
 
-    Pool memory pool = pools_[poolId];
+    // a 0 sourceReserve means the pool is not supported by dexterity (not created)
+    require(reserveIn == 0 || reserveIn >= amount, SwapInsufficientLiquidity());
 
-    if (pool.firstReserve == 0) {
+    if (reserveIn == 0) {
       forwardSwapToUniswapRouter_(sourceToken, amount);
       return;
     }
 
-    emit Swapped(msg.sender, sourceToken, destinationToken, 100_300, 911);
+    uint128 reserveOut = destinationToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
+    uint128 amountIn = amount * 997;
+    uint128 numerator = reserveOut * amountIn;
+    uint128 denominator = reserveIn * 1000 + amountIn;
+    uint128 amountOut = numerator / denominator;
+
+    IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
+    IERC20(destinationToken).transfer(msg.sender, amountOut);
+
+    if (sourceToken == pool.firstToken) {
+      pool.firstReserve += amount;
+      pool.secondReserve -= amountOut;
+    } else {
+      pool.secondReserve += amount;
+      pool.firstReserve -= amountOut;
+    }
+
+    emit Swapped(msg.sender, sourceToken, destinationToken, amount, amountOut);
   }
 
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
@@ -111,6 +128,10 @@ contract Dexterity is IDexterity {
   function forwardSwapToUniswapRouter_(address sourceToken, uint256 amount) internal {
     address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
 
+    // Need an explanation here:
+    // Though it is designed to fail, the second return value (bytes memory data) is not initialized.
+    // I wonder why. Other tests with read functions are OK.
+    // Did I make an error with encodeSignature?
     (bool success,) = uniswap.call(
       abi.encodeWithSignature(
         "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",

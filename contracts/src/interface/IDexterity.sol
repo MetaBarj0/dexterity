@@ -35,5 +35,5 @@ interface IDexterity {
   function getPool(address firstToken, address secondToken) external view returns (Pool memory);
   function deposit(address firstToken, address secondToken, uint128 firstAmount, uint128 secondAmount) external;
   function withdraw(address firstToken, address secondToken, uint128 shares) external;
-  function swap(address sourceToken, uint256 amount, address destinationToken) external;
+  function swap(address sourceToken, uint128 amount, address destinationToken) external;
 }
