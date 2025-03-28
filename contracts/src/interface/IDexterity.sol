@@ -17,20 +17,41 @@ interface IDexterity {
     address secondToken;
   }
 
+  /// @dev zero amount deposit for one or both tokens
   error DepositInvalidAmount();
+
+  /// @dev one or both token are zero address
   error DepositZeroAddress();
+
+  /// @dev both tokens have the same address
   error DepositSameToken();
+
+  /// @dev overflowing deposit. Due to how share are calculated, reserves must
+  ///      hold in an uint128 storage space.
   error DepositOverflowing();
+
+  /// @dev holder attempts to withdraw more share than he has
   error WithdrawNotEnoughShares();
+
+  /// @dev trader attemps to swap same token
   error SwapSameToken();
+
+  /// @dev trader attempts to swap zero token
   error SwapInvalidAmount();
+
+  /// @dev the pool does not have enough liquidity to perform the swap
   error SwapInsufficientLiquidity();
 
-  /// @notice triggered when a forward to uniswap v2 router 02 failed
+  /// @dev triggered when a forward to uniswap v2 router 02 failed
   error SwapUniswapForwardFailure();
 
+  /// @dev emitted only whe the first deposit is made into a pool.
   event PoolCreated(address indexed firstToken, address indexed secondToken, uint256 indexed poolId);
+
+  /// @dev deposit successfully done emit this event
   event Deposited(address indexed firstToken, address indexed secondToken, uint256 firstAmount, uint256 secondAmount);
+
+  /// @dev successful withdraws emit this event
   event Withdrawn(
     address indexed firstToken,
     address indexed secondToken,
@@ -38,6 +59,8 @@ interface IDexterity {
     uint128 firstTokenAmount,
     uint128 secondTokenAmount
   );
+
+  /// @dev successful swaps emit this event
   event Swapped(
     address indexed sender,
     address indexed firstToken,
@@ -46,9 +69,39 @@ interface IDexterity {
     uint256 secondAmount
   );
 
+  /// @notice returns the creator of this IDexterity instance.
+  /// @return the creator, the one.
   function creator() external view returns (address);
+
+  /// @notice Obtain a copy of a pool specified by token addresses
+  /// @dev Order of the specified tokens does not matter (see getPoolId_ in
+  ///      Dexterity implementation)
+  /// @param firstToken is a token address
+  /// @param secondToken is a token address
+  /// @return a copy of a pool in a mpping in the implementation for example
+  ///         (see pools_ state variable in Dexterity implementation)
   function getPool(address firstToken, address secondToken) external view returns (Pool memory);
+
+  /// @notice Perform a deposit
+  /// @dev Note the uint128 storage space for amounts.
+  /// @param firstToken a token address used to get the pool
+  /// @param secondToken a token address used to get the pool
+  /// @param firstAmount an amount for the first token
+  /// @param secondAmount an amount for the second token
   function deposit(address firstToken, address secondToken, uint128 firstAmount, uint128 secondAmount) external;
+
+  /// @notice allow a holder to withdraw his liquidity
+  /// @dev Note the storage type of shares
+  /// @param firstToken a token address used to get the pool and credit the holder
+  /// @param secondToken a token address used to get the pool and credit the holder
+  /// @param shares the share amount to withdraw
   function withdraw(address firstToken, address secondToken, uint128 shares) external;
+
+  /// @notice Perform a swap
+  /// @dev Note the storage type for amount. This is a swapIn, it means it
+  ///      takes an exact amount of input token to convert to a computed amount
+  ///      of output token
+  /// @param sourceToken the token to swap from
+  /// @param destinationToken the token to swap to
   function swap(address sourceToken, uint128 amount, address destinationToken) external;
 }

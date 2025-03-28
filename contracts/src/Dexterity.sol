@@ -112,6 +112,7 @@ contract Dexterity is IDexterity {
     IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
     IERC20(destinationToken).transfer(msg.sender, amountOut);
 
+    // TODO: cover both branches. Can be done when I will implement swapOut mechanic
     if (sourceToken == pool.firstToken) {
       pool.firstReserve += amount;
       pool.secondReserve -= amountOut;
