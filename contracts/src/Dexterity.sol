@@ -2,8 +2,11 @@
 pragma solidity 0.8.28;
 
 import { IDexterity } from "./interface/IDexterity.sol";
+
+import { IUniswapV2Router02 } from "./interface/IUniswapV2Router02.sol";
 import { Maths } from "./library/Maths.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { console } from "forge-std/Test.sol";
 
 contract Dexterity is IDexterity {
   address private immutable creator_;
@@ -99,7 +102,7 @@ contract Dexterity is IDexterity {
     require(reserveIn == 0 || reserveIn >= amount, SwapInsufficientLiquidity());
 
     if (reserveIn == 0) {
-      forwardSwapToUniswapRouter_(sourceToken, amount);
+      forwardSwapToUniswapRouter_(sourceToken, amount, destinationToken);
       return;
     }
 
@@ -128,24 +131,30 @@ contract Dexterity is IDexterity {
     return uint256(keccak256(abi.encodePacked(bytes20(firstToken) ^ bytes20(secondToken))));
   }
 
-  function forwardSwapToUniswapRouter_(address sourceToken, uint256 amount) internal {
+  function forwardSwapToUniswapRouter_(address sourceToken, uint256 amount, address destinationToken) internal {
+    IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
+    IERC20(sourceToken).transfer(creator_, amount * 2 / 1000);
+
+    uint256 amountMinusCreatorFee = amount * 998 / 1000; // creator fee model: 0.02%
+
     address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    IERC20(sourceToken).approve(uniswap, amountMinusCreatorFee);
 
-    // Need an explanation here:
-    // Though it is designed to fail, the second return value (bytes memory data) is not initialized.
-    // I wonder why. Other tests with read functions are OK.
-    // Did I make an error with encodeSignature?
-    (bool success,) = uniswap.call(
-      abi.encodeWithSignature(
-        "swapExactTokensForTokens(uint256,uint256,address[],address,uint256)",
-        amount,
-        0,
-        [sourceToken], // thought to fail, a valid path as at least 2 entries
-        msg.sender,
-        block.number + 1
-      )
-    );
+    IUniswapV2Router02 router = IUniswapV2Router02(uniswap);
 
-    require(success, SwapUniswapForwardFailure());
+    address[] memory path = new address[](2);
+
+    path[0] = sourceToken;
+    path[1] = destinationToken;
+
+    try router.swapExactTokensForTokens(amountMinusCreatorFee, 0, path, msg.sender, type(uint256).max) returns (
+      uint256[] memory amounts
+    ) {
+      emit Swapped(msg.sender, sourceToken, destinationToken, amount, amounts[1]);
+    } catch Error(string memory) {
+      revert SwapUniswapForwardFailure();
+    } catch (bytes memory) {
+      revert SwapUniswapForwardFailure();
+    }
   }
 }

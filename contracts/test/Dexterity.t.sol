@@ -325,12 +325,53 @@ contract SwapTests is DexterityTests {
 
   function test_swap_forwardToUniswapv2_withUnsupportedPairAndFails() public {
     vm.makePersistent(address(dex));
+    vm.makePersistent(address(tokenA));
+    vm.makePersistent(address(tokenB));
 
     vm.createSelectFork(vm.envString("MAINNET_URL"));
     vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
 
+    // TODO: replace minting function calls with deal calls
+    deal(address(tokenA), alice, 1000);
+
+    vm.startPrank(alice);
+
+    tokenA.approve(address(dex), 1000);
+
     vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
     dex.swap(address(tokenA), 1000, address(tokenB));
+
+    vm.stopPrank();
+
+    vm.makePersistent(address(tokenB));
+    vm.makePersistent(address(tokenA));
+    vm.revokePersistent(address(dex));
+  }
+
+  function test_swap_forwardToUniswapv2_succeeds_andTakesFeeForTheCreator() public {
+    vm.makePersistent(address(dex));
+
+    vm.createSelectFork(vm.envString("MAINNET_URL"));
+    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+
+    address usdcToken = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address wEthToken = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    deal(usdcToken, alice, 100_000);
+
+    vm.startPrank(alice);
+
+    IERC20(usdcToken).approve(address(dex), 90_000);
+
+    vm.expectEmit();
+    emit IDexterity.Swapped(alice, usdcToken, wEthToken, 90_000, 43_551_039_292_366);
+    dex.swap(usdcToken, 90_000, wEthToken);
+
+    vm.stopPrank();
+
+    assertEq(IERC20(usdcToken).balanceOf(alice), 10_000);
+    assertEq(IERC20(wEthToken).balanceOf(alice), 43_551_039_292_366);
+    assertEq(IERC20(usdcToken).balanceOf(dex.creator()), 90_000 * 2 / 1000);
 
     vm.revokePersistent(address(dex));
   }
