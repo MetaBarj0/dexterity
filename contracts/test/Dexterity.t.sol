@@ -45,8 +45,8 @@ abstract contract DexterityTests is Test {
   }
 
   function mintTokenABFor(address holder, uint256 amountA, uint256 amountB) internal {
-    tokenA.mintFor(holder, amountA);
-    tokenB.mintFor(holder, amountB);
+    deal(address(tokenA), holder, amountA);
+    deal(address(tokenB), holder, amountB);
   }
 
   function holderDepositAB(address holder, uint128 amountA, uint128 amountB) internal {
@@ -114,9 +114,9 @@ contract DepositTests is DexterityTests {
 
   function test_deposit_fails_forOverflowingAmounts() public {
     uint128 uint128max = type(uint128).max;
+    uint256 amount = uint256(uint128max) * 2;
 
-    tokenA.mintFor(alice, uint256(uint128max) * 2);
-    tokenB.mintFor(alice, uint256(uint128max) * 2);
+    mintTokenABFor(alice, amount, amount);
 
     vm.startPrank(alice);
     tokenA.approve(address(dex), uint256(uint128max) * 2);
@@ -134,8 +134,7 @@ contract DepositTests is DexterityTests {
   }
 
   function test_deposit_succeeds_andEmitPoolCreatedOnFirstDeposit() public {
-    tokenA.mintFor(alice, 3);
-    tokenB.mintFor(alice, 6);
+    mintTokenABFor(alice, 3, 6);
 
     vm.startPrank(alice);
 
@@ -151,8 +150,7 @@ contract DepositTests is DexterityTests {
   }
 
   function test_deposit_succeeds_withCorrectAmounts() public {
-    tokenA.mintFor(alice, 3);
-    tokenB.mintFor(alice, 6);
+    mintTokenABFor(alice, 3, 6);
 
     vm.startPrank(alice);
 
@@ -186,8 +184,7 @@ contract WithdrawTests is DexterityTests {
     withdrawAB(1);
     vm.stopPrank();
 
-    tokenA.mintFor(alice, 2);
-    tokenB.mintFor(alice, 2);
+    mintTokenABFor(alice, 2, 2);
 
     vm.startPrank(alice);
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
@@ -201,8 +198,7 @@ contract WithdrawTests is DexterityTests {
   }
 
   function test_withdraw_succeeds_whenSenderHasEnoughShares() public {
-    tokenA.mintFor(alice, 100_000);
-    tokenB.mintFor(alice, 1000);
+    mintTokenABFor(alice, 100_000, 1000);
 
     vm.startPrank(alice);
 
@@ -233,11 +229,8 @@ contract WithdrawTests is DexterityTests {
   }
 
   function test_withdraw_succeeeds_withDifferentHolders() public {
-    tokenA.mintFor(alice, 10_000);
-    tokenB.mintFor(alice, 100);
-
-    tokenA.mintFor(bob, 10_000);
-    tokenB.mintFor(bob, 100);
+    mintTokenABFor(alice, 10_000, 100);
+    mintTokenABFor(bob, 10_000, 100);
 
     vm.startPrank(alice);
 
@@ -293,13 +286,13 @@ contract SwapTests is DexterityTests {
   }
 
   function test_swap_succeeds_withSmallVolume() public {
-    mintTokenABFor({ holder: alice, amountA: 8000, amountB: 800_000 });
-    mintTokenABFor({ holder: bob, amountA: 2000, amountB: 200_000 });
+    mintTokenABFor(alice, 8000, 800_000);
+    mintTokenABFor(bob, 2000, 200_000);
 
-    holderDepositAB({ holder: alice, amountA: 8000, amountB: 800_000 }); // 80k shares for alice
-    holderDepositAB({ holder: bob, amountA: 2000, amountB: 200_000 }); // 20k shares for bob
+    holderDepositAB(alice, 8000, 800_000); // 80k shares for alice
+    holderDepositAB(bob, 2000, 200_000); // 20k shares for bob
 
-    mintTokenABFor({ holder: chuck, amountA: 0, amountB: 100_000 }); // swapper, hardcoded fee model is 0.03%
+    mintTokenABFor(chuck, 0, 100_000); // swapper, hardcoded fee model is 0.03%
 
     uint256 oldK = getPoolABInvariant();
 
@@ -331,7 +324,6 @@ contract SwapTests is DexterityTests {
     vm.createSelectFork(vm.envString("MAINNET_URL"));
     vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
 
-    // TODO: replace minting function calls with deal calls
     deal(address(tokenA), alice, 1000);
 
     vm.startPrank(alice);
