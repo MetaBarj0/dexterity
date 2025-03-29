@@ -60,13 +60,14 @@ interface IDexterity {
     uint128 secondTokenAmount
   );
 
+  // TODO: rename source and destination to in and out
   /// @dev successful swaps emit this event
   event Swapped(
     address indexed sender,
-    address indexed firstToken,
-    address indexed secondToken,
-    uint256 firstAmount,
-    uint256 secondAmount
+    address indexed sourceToken,
+    address indexed destinationToken,
+    uint256 sourceAmount,
+    uint256 destinationAmount
   );
 
   /// @notice returns the creator of this IDexterity instance.
@@ -97,11 +98,21 @@ interface IDexterity {
   /// @param shares the share amount to withdraw
   function withdraw(address firstToken, address secondToken, uint128 shares) external;
 
-  /// @notice Perform a swap
+  /// @notice Perform a swapIn
   /// @dev Note the storage type for amount. This is a swapIn, it means it
   ///      takes an exact amount of input token to convert to a computed amount
   ///      of output token
   /// @param sourceToken the token to swap from
+  /// @param amount the amount of input token to swap
   /// @param destinationToken the token to swap to
-  function swap(address sourceToken, uint128 amount, address destinationToken) external;
+  function swapIn(address sourceToken, uint128 amount, address destinationToken) external;
+
+  /// @notice Perform a swapOut
+  /// @dev Note the storage type for amount. This is a swapOut, it means it
+  ///      gives an exact amount of output token from a computed amount of
+  ///      input token
+  /// @param destinationToken the token to swap to
+  /// @param amount the amount of wanted output token
+  /// @param sourceToken the token to swap from
+  function swapOut(address destinationToken, uint128 amount, address sourceToken) external;
 }

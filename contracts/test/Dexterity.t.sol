@@ -266,15 +266,24 @@ contract WithdrawTests is DexterityTests {
 contract SwapTests is DexterityTests {
   function test_swap_fails_withSameToken() public {
     vm.expectRevert(IDexterity.SwapSameToken.selector);
-    dex.swap(address(tokenA), 0, address(tokenA));
+    dex.swapIn(address(tokenA), 0, address(tokenA));
+
+    vm.expectRevert(IDexterity.SwapSameToken.selector);
+    dex.swapOut(address(tokenA), 0, address(tokenA));
   }
 
   function test_swap_fails_ifZeroAmount() public {
     vm.expectRevert(IDexterity.SwapInvalidAmount.selector);
-    dex.swap(address(tokenA), 0, address(tokenB));
+    dex.swapIn(address(tokenA), 0, address(tokenB));
 
     vm.expectRevert(IDexterity.SwapInvalidAmount.selector);
-    dex.swap(address(tokenB), 0, address(tokenA));
+    dex.swapIn(address(tokenB), 0, address(tokenA));
+
+    vm.expectRevert(IDexterity.SwapInvalidAmount.selector);
+    dex.swapOut(address(tokenA), 0, address(tokenB));
+
+    vm.expectRevert(IDexterity.SwapInvalidAmount.selector);
+    dex.swapOut(address(tokenB), 0, address(tokenA));
   }
 
   function test_swap_fails_forPoolWithInsufficientLiquidity() public {
@@ -282,10 +291,61 @@ contract SwapTests is DexterityTests {
     holderDepositAB(alice, 1, 1);
 
     vm.expectRevert(IDexterity.SwapInsufficientLiquidity.selector);
-    dex.swap(address(tokenA), 2, address(tokenB));
+    dex.swapIn(address(tokenA), 2, address(tokenB));
+
+    vm.expectRevert(IDexterity.SwapInsufficientLiquidity.selector);
+    dex.swapOut(address(tokenB), 2, address(tokenA));
   }
 
-  function test_swap_succeeds_withSmallVolume() public {
+  function test_swapIn_forwardToUniswapV2_withUnsupportedPairAndFails() public {
+    vm.makePersistent(address(dex));
+    vm.makePersistent(address(tokenA));
+    vm.makePersistent(address(tokenB));
+
+    vm.createSelectFork(vm.envString("MAINNET_URL"));
+    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+
+    deal(address(tokenA), alice, 1000);
+
+    vm.startPrank(alice);
+
+    tokenA.approve(address(dex), 1000);
+
+    vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
+    dex.swapIn(address(tokenA), 1000, address(tokenB));
+
+    vm.stopPrank();
+
+    vm.revokePersistent(address(tokenB));
+    vm.revokePersistent(address(tokenA));
+    vm.revokePersistent(address(dex));
+  }
+
+  function test_swapOut_forwardToUniswapV2_withUnsupportedPairAndFails() public {
+    vm.makePersistent(address(dex));
+    vm.makePersistent(address(tokenA));
+    vm.makePersistent(address(tokenB));
+
+    vm.createSelectFork(vm.envString("MAINNET_URL"));
+    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+
+    deal(address(tokenA), alice, 1000);
+
+    vm.startPrank(alice);
+
+    tokenA.approve(address(dex), 1000);
+
+    vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
+    dex.swapOut(address(tokenB), 1000, address(tokenA));
+
+    vm.stopPrank();
+
+    vm.revokePersistent(address(tokenB));
+    vm.revokePersistent(address(tokenA));
+    vm.revokePersistent(address(dex));
+  }
+
+  function test_swapIn_succeeds_withSmallVolume() public {
     mintTokenABFor(alice, 8000, 800_000);
     mintTokenABFor(bob, 2000, 200_000);
 
@@ -302,7 +362,7 @@ contract SwapTests is DexterityTests {
 
     vm.expectEmit();
     emit IDexterity.Swapped(chuck, address(tokenB), address(tokenA), 100_000, 906);
-    dex.swap({ sourceToken: address(tokenB), amount: 100_000, destinationToken: address(tokenA) });
+    dex.swapIn({ sourceToken: address(tokenB), amount: 100_000, destinationToken: address(tokenA) });
 
     vm.stopPrank();
 
@@ -316,31 +376,38 @@ contract SwapTests is DexterityTests {
     assertGe(newK, oldK);
   }
 
-  function test_swap_forwardToUniswapv2_withUnsupportedPairAndFails() public {
-    vm.makePersistent(address(dex));
-    vm.makePersistent(address(tokenA));
-    vm.makePersistent(address(tokenB));
+  function test_swapOut_succeeds_withSmallVolume() public {
+    mintTokenABFor(alice, 8000, 800_000);
+    mintTokenABFor(bob, 2000, 200_000);
 
-    vm.createSelectFork(vm.envString("MAINNET_URL"));
-    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+    holderDepositAB(alice, 8000, 800_000); // 80k shares for alice
+    holderDepositAB(bob, 2000, 200_000); // 20k shares for bob
 
-    deal(address(tokenA), alice, 1000);
+    mintTokenABFor(chuck, 0, 100_000); // swapper, hardcoded fee model is 0.03%
 
-    vm.startPrank(alice);
+    uint256 oldK = getPoolABInvariant();
 
-    tokenA.approve(address(dex), 1000);
+    vm.startPrank(chuck);
 
-    vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
-    dex.swap(address(tokenA), 1000, address(tokenB));
+    tokenB.approve(address(dex), 100_000);
+
+    vm.expectEmit();
+    emit IDexterity.Swapped(chuck, address(tokenB), address(tokenA), 99_198, 900);
+    dex.swapOut({ destinationToken: address(tokenA), amount: 900, sourceToken: address(tokenB) });
 
     vm.stopPrank();
 
-    vm.makePersistent(address(tokenB));
-    vm.makePersistent(address(tokenA));
-    vm.revokePersistent(address(dex));
+    uint256 newK = getPoolABInvariant();
+
+    assertEq(900, tokenA.balanceOf(chuck));
+    assertEq(100_000 - 99_198, tokenB.balanceOf(chuck));
+    assertEq(9100, tokenA.balanceOf(address(dex)));
+    assertEq(1_099_198, tokenB.balanceOf(address(dex)));
+    assertPoolReserveABEq(9100, 1_099_198);
+    assertGe(newK, oldK);
   }
 
-  function test_swap_forwardToUniswapv2_succeeds_andTakesFeeForTheCreator() public {
+  function test_swapIn_forwardToUniswapV2_succeeds_andTakesFeeForTheCreator() public {
     vm.makePersistent(address(dex));
 
     vm.createSelectFork(vm.envString("MAINNET_URL"));
@@ -357,7 +424,7 @@ contract SwapTests is DexterityTests {
 
     vm.expectEmit();
     emit IDexterity.Swapped(alice, usdcToken, wEthToken, 90_000, 43_551_039_292_366);
-    dex.swap(usdcToken, 90_000, wEthToken);
+    dex.swapIn(usdcToken, 90_000, wEthToken);
 
     vm.stopPrank();
 

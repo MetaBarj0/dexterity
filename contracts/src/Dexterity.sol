@@ -6,7 +6,6 @@ import { IDexterity } from "./interface/IDexterity.sol";
 import { IUniswapV2Router02 } from "./interface/IUniswapV2Router02.sol";
 import { Maths } from "./library/Maths.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { console } from "forge-std/Test.sol";
 
 contract Dexterity is IDexterity {
   address private immutable creator_;
@@ -89,7 +88,7 @@ contract Dexterity is IDexterity {
     emit Withdrawn(firstToken, secondToken, shares, firstTokenAmount, secondTokenAmount);
   }
 
-  function swap(address sourceToken, uint128 amount, address destinationToken) external override {
+  function swapIn(address sourceToken, uint128 amount, address destinationToken) external override {
     require(sourceToken != destinationToken, SwapSameToken());
     require(amount > 0, SwapInvalidAmount());
 
@@ -98,19 +97,19 @@ contract Dexterity is IDexterity {
 
     uint128 reserveIn = sourceToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
 
-    // a 0 sourceReserve means the pool is not supported by dexterity (not created)
+    // a reserve at 0 means the pool is not supported by dexterity (not created)
     require(reserveIn == 0 || reserveIn >= amount, SwapInsufficientLiquidity());
 
     if (reserveIn == 0) {
-      forwardSwapToUniswapRouter_(sourceToken, amount, destinationToken);
+      uniswapSwapExactTokensForTokens_(sourceToken, amount, destinationToken);
       return;
     }
 
     uint128 reserveOut = destinationToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
-    uint128 amountIn = amount * 997; // hardcoded fee model, could be part of a pool definition
-    uint128 numerator = reserveOut * amountIn;
-    uint128 denominator = reserveIn * 1000 + amountIn;
-    uint128 amountOut = numerator / denominator;
+    uint256 amountIn = uint256(amount) * 997; // hardcoded fee model, could be part of a pool definition
+    uint256 numerator = uint256(reserveOut) * amountIn;
+    uint256 denominator = uint256(reserveIn) * 1000 + amountIn;
+    uint128 amountOut = uint128(numerator / denominator);
 
     IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
     IERC20(destinationToken).transfer(msg.sender, amountOut);
@@ -127,11 +126,48 @@ contract Dexterity is IDexterity {
     emit Swapped(msg.sender, sourceToken, destinationToken, amount, amountOut);
   }
 
+  function swapOut(address destinationToken, uint128 amount, address sourceToken) external override {
+    require(destinationToken != sourceToken, SwapSameToken());
+    require(amount > 0, SwapInvalidAmount());
+
+    uint256 poolId = computePoolId_(destinationToken, sourceToken);
+    Pool storage pool = pools_[poolId];
+
+    uint128 reserveOut = destinationToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
+
+    // a reserve at 0 means the pool is not supported by dexterity (not created)
+    require(reserveOut == 0 || reserveOut >= amount, SwapInsufficientLiquidity());
+
+    if (reserveOut == 0) {
+      uniswapSwapTokensForExactTokens_(destinationToken, amount, sourceToken);
+      return;
+    }
+
+    uint128 reserveIn = sourceToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
+    uint256 numerator = uint256(reserveIn) * amount * 1000;
+    uint256 denominator = (uint256(reserveOut) - amount) * 997;
+    uint128 amountIn = uint128(numerator / denominator);
+
+    IERC20(destinationToken).transfer(msg.sender, amount);
+    IERC20(sourceToken).transferFrom(msg.sender, address(this), amountIn);
+
+    // TODO: cover both branches. Can be done when I will implement swapOut mechanic
+    if (sourceToken == pool.firstToken) {
+      pool.firstReserve += amountIn;
+      pool.secondReserve -= amount;
+    } else {
+      pool.secondReserve += amountIn;
+      pool.firstReserve -= amount;
+    }
+
+    emit Swapped(msg.sender, sourceToken, destinationToken, amountIn, amount);
+  }
+
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
     return uint256(keccak256(abi.encodePacked(bytes20(firstToken) ^ bytes20(secondToken))));
   }
 
-  function forwardSwapToUniswapRouter_(address sourceToken, uint256 amount, address destinationToken) internal {
+  function uniswapSwapExactTokensForTokens_(address sourceToken, uint256 amount, address destinationToken) internal {
     IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
     IERC20(sourceToken).transfer(creator_, amount * 2 / 1000);
 
@@ -156,5 +192,9 @@ contract Dexterity is IDexterity {
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
+  }
+
+  function uniswapSwapTokensForExactTokens_(address destinationToken, uint256 amount, address sourceToken) internal {
+    revert SwapUniswapForwardFailure();
   }
 }
