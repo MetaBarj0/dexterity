@@ -88,155 +88,151 @@ contract Dexterity is IDexterity {
     emit Withdrawn(firstToken, secondToken, shares, firstTokenAmount, secondTokenAmount);
   }
 
-  function swapIn(address sourceToken, uint128 amount, address destinationToken) external override {
-    require(sourceToken != destinationToken, SwapSameToken());
-    require(amount > 0, SwapInvalidAmount());
+  function swapIn(address tokenIn, uint128 amountIn, address tokenOut) external override {
+    require(tokenIn != tokenOut, SwapSameToken());
+    require(amountIn > 0, SwapInvalidAmount());
 
-    uint256 poolId = computePoolId_(sourceToken, destinationToken);
+    uint256 poolId = computePoolId_(tokenIn, tokenOut);
     Pool storage pool = pools_[poolId];
 
-    (uint128 reserveIn, uint128 reserveOut) = getReserves_(pool, sourceToken, destinationToken);
+    (uint128 reserveIn, uint128 reserveOut) = getReserves_(pool, tokenIn);
 
     // a reserve at 0 means the pool is not supported by dexterity (not created)
-    require(reserveIn == 0 || reserveIn >= amount, SwapInsufficientLiquidity());
+    require(reserveIn == 0 || reserveIn >= amountIn, SwapInsufficientLiquidity());
 
     if (reserveIn == 0) {
-      uniswapSwapExactTokensForTokens_(sourceToken, amount, destinationToken);
+      uniswapSwapExactTokensForTokens_(tokenIn, amountIn, tokenOut);
       return;
     }
 
-    uint256 numerator = uint256(reserveOut) * uint256(amount) * 997;
-    uint256 denominator = uint256(reserveIn) * 1000 + uint256(amount) * 997;
+    uint256 numerator = uint256(reserveOut) * uint256(amountIn) * 997;
+    uint256 denominator = uint256(reserveIn) * 1000 + uint256(amountIn) * 997;
     uint128 amountOut = uint128(numerator / denominator);
 
-    IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
-    IERC20(destinationToken).transfer(msg.sender, amountOut);
+    IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenOut).transfer(msg.sender, amountOut);
 
-    updateReserves_(pool, sourceToken, destinationToken, amount, amountOut);
+    updateReserves_(pool, tokenIn, tokenOut, amountIn, amountOut);
 
-    emit Swapped(msg.sender, sourceToken, destinationToken, amount * 997 / 1000, amountOut);
+    emit Swapped(msg.sender, tokenIn, tokenOut, amountIn * 997 / 1000, amountOut);
   }
 
-  function swapOut(address destinationToken, uint128 amount, address sourceToken) external override {
-    require(destinationToken != sourceToken, SwapSameToken());
-    require(amount > 0, SwapInvalidAmount());
+  function swapOut(address tokenOut, uint128 amountOut, address tokenIn) external override {
+    require(tokenOut != tokenIn, SwapSameToken());
+    require(amountOut > 0, SwapInvalidAmount());
 
-    uint256 poolId = computePoolId_(destinationToken, sourceToken);
+    uint256 poolId = computePoolId_(tokenOut, tokenIn);
     Pool storage pool = pools_[poolId];
 
-    (uint128 reserveIn, uint128 reserveOut) = getReserves_(pool, sourceToken, destinationToken);
+    (uint128 reserveIn, uint128 reserveOut) = getReserves_(pool, tokenIn);
 
     // a reserve at 0 means the pool is not supported by dexterity (not created)
-    require(reserveOut == 0 || reserveOut >= amount, SwapInsufficientLiquidity());
+    require(reserveOut == 0 || reserveOut >= amountOut, SwapInsufficientLiquidity());
 
     if (reserveOut == 0) {
-      uniswapSwapTokensForExactTokens_(destinationToken, amount, sourceToken);
+      uniswapSwapTokensForExactTokens_(tokenOut, amountOut, tokenIn);
       return;
     }
 
-    uint256 numerator = uint256(reserveIn) * amount * 1000;
-    uint256 denominator = (uint256(reserveOut) - amount) * 997;
+    uint256 numerator = uint256(reserveIn) * amountOut * 1000;
+    uint256 denominator = (uint256(reserveOut) - amountOut) * 997;
     uint128 amountIn = uint128(numerator / denominator) + 1;
 
-    IERC20(sourceToken).transferFrom(msg.sender, address(this), amountIn);
-    IERC20(destinationToken).transfer(msg.sender, amount);
+    IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenOut).transfer(msg.sender, amountOut);
 
-    updateReserves_(pool, sourceToken, destinationToken, amountIn, amount);
+    updateReserves_(pool, tokenIn, tokenOut, amountIn, amountOut);
 
-    emit Swapped(msg.sender, sourceToken, destinationToken, amountIn * 997 / 1000, amount);
+    emit Swapped(msg.sender, tokenIn, tokenOut, amountIn * 997 / 1000, amountOut);
   }
 
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
     return uint256(keccak256(abi.encodePacked(bytes20(firstToken) ^ bytes20(secondToken))));
   }
 
-  function uniswapSwapExactTokensForTokens_(address sourceToken, uint256 amount, address destinationToken) internal {
-    IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
-    IERC20(sourceToken).transfer(creator_, amount * 2 / 1000);
+  function uniswapSwapExactTokensForTokens_(address tokenIn, uint256 amountIn, address tokenOut) internal {
+    IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenIn).transfer(creator_, amountIn * 2 / 1000);
 
-    uint256 amountMinusCreatorFee = amount * 998 / 1000; // creator fee model: 0.02%
+    uint256 amountMinusCreatorFee = amountIn * 998 / 1000; // creator fee model: 0.02%
 
     address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    IERC20(sourceToken).approve(uniswap, amountMinusCreatorFee);
+    IERC20(tokenIn).approve(uniswap, amountMinusCreatorFee);
 
     IUniswapV2Router02 router = IUniswapV2Router02(uniswap);
 
     address[] memory path = new address[](2);
 
-    path[0] = sourceToken;
-    path[1] = destinationToken;
+    path[0] = tokenIn;
+    path[1] = tokenOut;
 
     try router.swapExactTokensForTokens(amountMinusCreatorFee, 0, path, msg.sender, type(uint256).max) returns (
       uint256[] memory
     ) {
-      emit Swapped(msg.sender, sourceToken, destinationToken, 0, 0);
+      emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
     } catch Error(string memory) {
       revert SwapUniswapForwardFailure();
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
 
-    IERC20(sourceToken).approve(uniswap, 0);
+    IERC20(tokenIn).approve(uniswap, 0);
   }
 
-  function uniswapSwapTokensForExactTokens_(address destinationToken, uint256 amount, address sourceToken) internal {
-    uint256 sourceTokenAllowance = IERC20(sourceToken).allowance(msg.sender, address(this));
-    IERC20(sourceToken).transferFrom(msg.sender, address(this), sourceTokenAllowance);
+  function uniswapSwapTokensForExactTokens_(address tokenOut, uint256 amountOut, address tokenIn) internal {
+    uint256 tokenInAllowance = IERC20(tokenIn).allowance(msg.sender, address(this));
+    IERC20(tokenIn).transferFrom(msg.sender, address(this), tokenInAllowance);
 
     address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    IERC20(sourceToken).approve(uniswap, sourceTokenAllowance);
+    IERC20(tokenIn).approve(uniswap, tokenInAllowance);
 
     IUniswapV2Router02 router = IUniswapV2Router02(uniswap);
 
     address[] memory path = new address[](2);
 
-    path[0] = sourceToken;
-    path[1] = destinationToken;
+    path[0] = tokenIn;
+    path[1] = tokenOut;
 
-    uint256 sourceTokenBalanceBeforeSwap = IERC20(sourceToken).balanceOf(address(this));
+    uint256 tokenInBalanceBeforeSwap = IERC20(tokenIn).balanceOf(address(this));
 
-    try router.swapTokensForExactTokens(amount, sourceTokenAllowance, path, msg.sender, type(uint256).max) returns (
+    try router.swapTokensForExactTokens(amountOut, tokenInAllowance, path, msg.sender, type(uint256).max) returns (
       uint256[] memory
     ) {
-      emit Swapped(msg.sender, sourceToken, destinationToken, 0, 0);
+      emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
     } catch Error(string memory) {
       revert SwapUniswapForwardFailure();
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
 
-    uint256 sourceTokenBalanceAfterSwap = IERC20(sourceToken).balanceOf(address(this));
+    uint256 tokenInBalanceAfterSwap = IERC20(tokenIn).balanceOf(address(this));
 
-    IERC20(sourceToken).approve(uniswap, 0);
+    IERC20(tokenIn).approve(uniswap, 0);
 
-    uint256 spent = sourceTokenBalanceBeforeSwap - sourceTokenBalanceAfterSwap;
+    uint256 spent = tokenInBalanceBeforeSwap - tokenInBalanceAfterSwap;
     uint256 creatorFee = spent * 2 / 1000;
 
-    require(sourceTokenBalanceAfterSwap > creatorFee, SwapUniswapForwardFailure());
+    require(tokenInBalanceAfterSwap > creatorFee, SwapUniswapForwardFailure());
 
-    uint256 refund = sourceTokenBalanceAfterSwap - creatorFee;
+    uint256 refund = tokenInBalanceAfterSwap - creatorFee;
 
-    IERC20(sourceToken).transfer(creator(), creatorFee);
-    IERC20(sourceToken).transfer(msg.sender, refund);
+    IERC20(tokenIn).transfer(creator(), creatorFee);
+    IERC20(tokenIn).transfer(msg.sender, refund);
   }
 
-  function getReserves_(Pool storage pool, address sourceToken, address destinationToken)
+  function getReserves_(Pool storage pool, address tokenIn)
     private
     view
     returns (uint128 reserveIn, uint128 reserveOut)
   {
     (reserveIn, reserveOut) =
-      sourceToken == pool.firstToken ? (pool.firstReserve, pool.secondReserve) : (pool.secondReserve, pool.firstReserve);
+      tokenIn == pool.firstToken ? (pool.firstReserve, pool.secondReserve) : (pool.secondReserve, pool.firstReserve);
   }
 
-  function updateReserves_(
-    Pool storage pool,
-    address sourceToken,
-    address destinationToken,
-    uint128 amountIn,
-    uint128 amountOut
-  ) private {
-    if (sourceToken == pool.firstToken) {
+  function updateReserves_(Pool storage pool, address tokenIn, address tokenOut, uint128 amountIn, uint128 amountOut)
+    private
+  {
+    if (tokenIn == pool.firstToken) {
       pool.firstReserve += amountIn;
       pool.secondReserve -= amountOut;
     } else {
@@ -244,8 +240,6 @@ contract Dexterity is IDexterity {
       pool.firstReserve -= amountOut;
     }
 
-    emit PoolUpdated(
-      computePoolId_(sourceToken, destinationToken), sourceToken, destinationToken, int128(amountIn), -int128(amountOut)
-    );
+    emit PoolUpdated(computePoolId_(tokenIn, tokenOut), tokenIn, tokenOut, int128(amountIn), -int128(amountOut));
   }
 }

@@ -60,7 +60,6 @@ interface IDexterity {
     uint128 secondTokenAmount
   );
 
-  // TODO: emit this on pool deposit too.
   /// @dev successful pool updates emit this event
   event PoolUpdated(
     uint256 poolId, address indexed firstToken, address indexed secondToken, int128 firstOffset, int128 secondOffset
@@ -68,12 +67,7 @@ interface IDexterity {
 
   /// @dev successful swaps emit this event
   event Swapped(
-    address indexed sender,
-    // TODO: rename source and destination to in and out
-    address indexed sourceToken,
-    address indexed destinationToken,
-    uint256 sourceAmount,
-    uint256 destinationAmount
+    address indexed sender, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut
   );
 
   /// @notice returns the creator of this IDexterity instance.
@@ -108,17 +102,17 @@ interface IDexterity {
   /// @dev Note the storage type for amount. This is a swapIn, it means it
   ///      takes an exact amount of input token to convert to a computed amount
   ///      of output token
-  /// @param sourceToken the token to swap from
+  /// @param tokenIn the token to swap from
   /// @param amount the amount of input token to swap
-  /// @param destinationToken the token to swap to
-  function swapIn(address sourceToken, uint128 amount, address destinationToken) external;
+  /// @param tokenOut the token to swap to
+  function swapIn(address tokenIn, uint128 amount, address tokenOut) external;
 
   /// @notice Perform a swapOut
   /// @dev Note the storage type for amount. This is a swapOut, it means it
   ///      gives an exact amount of output token from a computed amount of
   ///      input token
-  /// @param destinationToken the token to swap to
+  /// @param tokenOut the token to swap to
   /// @param amount the amount of wanted output token
-  /// @param sourceToken the token to swap from
-  function swapOut(address destinationToken, uint128 amount, address sourceToken) external;
+  /// @param tokenIn the token to swap from
+  function swapOut(address tokenOut, uint128 amount, address tokenIn) external;
 }
