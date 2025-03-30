@@ -167,18 +167,57 @@ contract Dexterity is IDexterity {
     path[1] = destinationToken;
 
     try router.swapExactTokensForTokens(amountMinusCreatorFee, 0, path, msg.sender, type(uint256).max) returns (
-      uint256[] memory amounts
+      uint256[] memory
     ) {
-      emit Swapped(msg.sender, sourceToken, destinationToken, amount, amounts[1]);
+      emit Swapped(msg.sender, sourceToken, destinationToken, 0, 0);
     } catch Error(string memory) {
       revert SwapUniswapForwardFailure();
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
+
+    IERC20(sourceToken).approve(uniswap, 0);
   }
 
   function uniswapSwapTokensForExactTokens_(address destinationToken, uint256 amount, address sourceToken) internal {
-    revert SwapUniswapForwardFailure();
+    uint256 sourceTokenAllowance = IERC20(sourceToken).allowance(msg.sender, address(this));
+    IERC20(sourceToken).transferFrom(msg.sender, address(this), sourceTokenAllowance);
+
+    address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    IERC20(sourceToken).approve(uniswap, sourceTokenAllowance);
+
+    IUniswapV2Router02 router = IUniswapV2Router02(uniswap);
+
+    address[] memory path = new address[](2);
+
+    path[0] = sourceToken;
+    path[1] = destinationToken;
+
+    uint256 sourceTokenBalanceBeforeSwap = IERC20(sourceToken).balanceOf(address(this));
+
+    try router.swapTokensForExactTokens(amount, sourceTokenAllowance, path, msg.sender, type(uint256).max) returns (
+      uint256[] memory
+    ) {
+      emit Swapped(msg.sender, sourceToken, destinationToken, 0, 0);
+    } catch Error(string memory) {
+      revert SwapUniswapForwardFailure();
+    } catch (bytes memory) {
+      revert SwapUniswapForwardFailure();
+    }
+
+    uint256 sourceTokenBalanceAfterSwap = IERC20(sourceToken).balanceOf(address(this));
+
+    IERC20(sourceToken).approve(uniswap, 0);
+
+    uint256 spent = sourceTokenBalanceBeforeSwap - sourceTokenBalanceAfterSwap;
+    uint256 creatorFee = spent * 2 / 1000;
+
+    require(sourceTokenBalanceAfterSwap > creatorFee, SwapUniswapForwardFailure());
+
+    uint256 refund = sourceTokenBalanceAfterSwap - creatorFee;
+
+    IERC20(sourceToken).transfer(creator(), creatorFee);
+    IERC20(sourceToken).transfer(msg.sender, refund);
   }
 
   function getReserves_(Pool storage pool, address sourceToken, address destinationToken)
