@@ -20,6 +20,9 @@ abstract contract DexterityTests is Test {
   address internal bob;
   address internal chuck;
 
+  uint256 private beforeSwapK;
+  uint256 private afterSwapK;
+
   function setUp() public {
     dex = new Dexterity();
 
@@ -49,13 +52,19 @@ abstract contract DexterityTests is Test {
     deal(address(tokenB), holder, amountB);
   }
 
-  function holderDepositAB(address holder, uint128 amountA, uint128 amountB) internal {
+  function holderDeposit(
+    address holder,
+    IERC20 firstToken,
+    uint128 firstAmount,
+    IERC20 secondToken,
+    uint128 secondAmount
+  ) internal {
     vm.startPrank(holder);
 
-    tokenA.approve(address(dex), amountA);
-    tokenB.approve(address(dex), amountB);
+    firstToken.approve(address(dex), firstAmount);
+    secondToken.approve(address(dex), secondAmount);
 
-    dex.deposit(address(tokenA), address(tokenB), amountA, amountB);
+    dex.deposit(address(firstToken), address(secondToken), firstAmount, secondAmount);
 
     vm.stopPrank();
   }
@@ -75,6 +84,112 @@ abstract contract DexterityTests is Test {
 
     assertEq(poolReserveB, reserveB);
     assertEq(poolReserveA, reserveA);
+  }
+
+  function prepareHugeTradeForSmallPool_(IERC20 sourceToken, IERC20 destinationToken) internal {
+    deal(address(sourceToken), alice, 800_000);
+    deal(address(destinationToken), alice, 8000);
+
+    deal(address(sourceToken), bob, 200_000);
+    deal(address(destinationToken), bob, 2000);
+
+    holderDeposit(alice, tokenA, 8000, tokenB, 800_000); // 80k shares for alice
+    holderDeposit(bob, tokenA, 2000, tokenB, 200_000); // 20k shares for bob
+
+    deal(address(sourceToken), chuck, 100_000);
+  }
+
+  modifier setupSwap(IERC20 sourceToken, IERC20 destinationToken) {
+    IDexterity.Pool memory beforeSwapPool = dex.getPool(address(sourceToken), address(destinationToken));
+
+    beforeSwapK = beforeSwapPool.firstReserve * beforeSwapPool.secondReserve;
+
+    vm.startPrank(chuck);
+
+    sourceToken.approve(address(dex), sourceToken.balanceOf(chuck));
+
+    // We don't check exact value of out token amount here it's not important
+    // at this stage verified in balance check and invariant check
+    // We also don't care the pool id here
+    vm.expectEmit(false, true, true, false);
+    emit IDexterity.PoolUpdated(0, address(sourceToken), address(destinationToken), 0, 0);
+
+    // We don't check exact value for amounts here it's not important at this
+    // stage verified in balance check and invariant check
+    vm.expectEmit(true, true, true, false);
+    emit IDexterity.Swapped(chuck, address(sourceToken), address(destinationToken), 0, 0);
+
+    _;
+
+    vm.stopPrank();
+
+    IDexterity.Pool memory afterSwapPool = dex.getPool(address(sourceToken), address(destinationToken));
+
+    afterSwapK = afterSwapPool.firstReserve * afterSwapPool.secondReserve;
+  }
+
+  function performHugeSwapInForSmallPool_(IERC20 sourceToken, uint128 amount, IERC20 destinationToken)
+    internal
+    setupSwap(sourceToken, destinationToken)
+  {
+    dex.swapIn(address(sourceToken), amount, address(destinationToken));
+  }
+
+  function performHugeSwapOutForSmallPool_(IERC20 destinationToken, uint128 amount, IERC20 sourceToken)
+    internal
+    setupSwap(sourceToken, destinationToken)
+  {
+    dex.swapOut(address(destinationToken), amount, address(sourceToken));
+  }
+
+  function ensureCorrectnessOfHugeSwapInForSmallPool_(
+    IERC20 sourceToken,
+    uint128 beforeSwapReserveIn,
+    uint128 amount,
+    IERC20 destinationToken,
+    uint128 beforeSwapReserveOut
+  ) internal view {
+    assertGe(afterSwapK, beforeSwapK);
+
+    IDexterity.Pool memory pool = dex.getPool(address(sourceToken), address(destinationToken));
+    (uint128 reserveIn, uint128 reserveOut) = pool.firstToken == address(sourceToken)
+      ? (pool.firstReserve, pool.secondReserve)
+      : (pool.secondReserve, pool.firstReserve);
+
+    assertGt(beforeSwapK, (997 * amount + 1000 * beforeSwapReserveIn) * (reserveOut - 1) / 1000);
+
+    assertEq(reserveIn, beforeSwapReserveIn + amount);
+    assertLt(reserveOut, beforeSwapReserveOut);
+
+    assertEq(sourceToken.balanceOf(chuck), 0);
+    assertGt(destinationToken.balanceOf(chuck), 0);
+  }
+
+  function ensureCorrectnessOfHugeSwapOutForSmallPool_(
+    IERC20 destinationToken,
+    uint128 beforeSwapReserveOut,
+    uint128 amount,
+    IERC20 sourceToken,
+    uint128 beforeSwapReserveIn
+  ) internal view {
+    assertGe(afterSwapK, beforeSwapK);
+
+    // TODO: pool.getReserves()
+    IDexterity.Pool memory pool = dex.getPool(address(sourceToken), address(destinationToken));
+    (uint128 reserveIn, uint128 reserveOut) = pool.firstToken == address(sourceToken)
+      ? (pool.firstReserve, pool.secondReserve)
+      : (pool.secondReserve, pool.firstReserve);
+
+    uint128 amountIn = reserveIn - beforeSwapReserveIn;
+
+    assertGt(beforeSwapK, (1000 * beforeSwapReserveIn + 997 * amountIn) * (reserveOut - 1) / 1000);
+
+    console.log(reserveIn);
+    assertGt(reserveIn, beforeSwapReserveIn);
+    assertEq(reserveOut, beforeSwapReserveOut - amount);
+
+    assertLt(sourceToken.balanceOf(chuck), 100_000);
+    assertEq(destinationToken.balanceOf(chuck), 900);
   }
 }
 
@@ -288,7 +403,7 @@ contract SwapTests is DexterityTests {
 
   function test_swap_fails_forPoolWithInsufficientLiquidity() public {
     mintTokenABFor(alice, 1, 1);
-    holderDepositAB(alice, 1, 1);
+    holderDeposit(alice, tokenA, 1, tokenB, 1);
 
     vm.expectRevert(IDexterity.SwapInsufficientLiquidity.selector);
     dex.swapIn(address(tokenA), 2, address(tokenB));
@@ -345,66 +460,20 @@ contract SwapTests is DexterityTests {
     vm.revokePersistent(address(dex));
   }
 
-  function test_swapIn_succeeds_withSmallVolume() public {
-    mintTokenABFor(alice, 8000, 800_000);
-    mintTokenABFor(bob, 2000, 200_000);
+  function test_swapIn_succeeds_withSmallPoolHugeTrade() public {
+    prepareHugeTradeForSmallPool_(tokenB, tokenA);
 
-    holderDepositAB(alice, 8000, 800_000); // 80k shares for alice
-    holderDepositAB(bob, 2000, 200_000); // 20k shares for bob
+    performHugeSwapInForSmallPool_(tokenB, 100_000, tokenA);
 
-    mintTokenABFor(chuck, 0, 100_000); // swapper, hardcoded fee model is 0.03%
-
-    uint256 oldK = getPoolABInvariant();
-
-    vm.startPrank(chuck);
-
-    tokenB.approve(address(dex), 100_000);
-
-    vm.expectEmit();
-    emit IDexterity.Swapped(chuck, address(tokenB), address(tokenA), 100_000, 906);
-    dex.swapIn({ sourceToken: address(tokenB), amount: 100_000, destinationToken: address(tokenA) });
-
-    vm.stopPrank();
-
-    uint256 newK = getPoolABInvariant();
-
-    assertEq(906, tokenA.balanceOf(chuck));
-    assertEq(0, tokenB.balanceOf(chuck));
-    assertEq(9094, tokenA.balanceOf(address(dex)));
-    assertEq(1_100_000, tokenB.balanceOf(address(dex)));
-    assertPoolReserveABEq(9094, 1_100_000);
-    assertGe(newK, oldK);
+    ensureCorrectnessOfHugeSwapInForSmallPool_(tokenB, 1_000_000, 100_000, tokenA, 10_000);
   }
 
-  function test_swapOut_succeeds_withSmallVolume() public {
-    mintTokenABFor(alice, 8000, 800_000);
-    mintTokenABFor(bob, 2000, 200_000);
+  function test_swapOut_succeeds_withSmallPoolHugeTrade() public {
+    prepareHugeTradeForSmallPool_(tokenB, tokenA);
 
-    holderDepositAB(alice, 8000, 800_000); // 80k shares for alice
-    holderDepositAB(bob, 2000, 200_000); // 20k shares for bob
+    performHugeSwapOutForSmallPool_(tokenA, 900, tokenB);
 
-    mintTokenABFor(chuck, 0, 100_000); // swapper, hardcoded fee model is 0.03%
-
-    uint256 oldK = getPoolABInvariant();
-
-    vm.startPrank(chuck);
-
-    tokenB.approve(address(dex), 100_000);
-
-    vm.expectEmit();
-    emit IDexterity.Swapped(chuck, address(tokenB), address(tokenA), 99_198, 900);
-    dex.swapOut({ destinationToken: address(tokenA), amount: 900, sourceToken: address(tokenB) });
-
-    vm.stopPrank();
-
-    uint256 newK = getPoolABInvariant();
-
-    assertEq(900, tokenA.balanceOf(chuck));
-    assertEq(100_000 - 99_198, tokenB.balanceOf(chuck));
-    assertEq(9100, tokenA.balanceOf(address(dex)));
-    assertEq(1_099_198, tokenB.balanceOf(address(dex)));
-    assertPoolReserveABEq(9100, 1_099_198);
-    assertGe(newK, oldK);
+    ensureCorrectnessOfHugeSwapOutForSmallPool_(tokenA, 10_000, 900, tokenB, 1_000_000);
   }
 
   function test_swapIn_forwardToUniswapV2_succeeds_andTakesFeeForTheCreator() public {

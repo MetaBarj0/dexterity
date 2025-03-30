@@ -95,7 +95,7 @@ contract Dexterity is IDexterity {
     uint256 poolId = computePoolId_(sourceToken, destinationToken);
     Pool storage pool = pools_[poolId];
 
-    uint128 reserveIn = sourceToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
+    (uint128 reserveIn, uint128 reserveOut) = getReserves_(pool, sourceToken, destinationToken);
 
     // a reserve at 0 means the pool is not supported by dexterity (not created)
     require(reserveIn == 0 || reserveIn >= amount, SwapInsufficientLiquidity());
@@ -105,25 +105,16 @@ contract Dexterity is IDexterity {
       return;
     }
 
-    uint128 reserveOut = destinationToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
-    uint256 amountIn = uint256(amount) * 997; // hardcoded fee model, could be part of a pool definition
-    uint256 numerator = uint256(reserveOut) * amountIn;
-    uint256 denominator = uint256(reserveIn) * 1000 + amountIn;
+    uint256 numerator = uint256(reserveOut) * uint256(amount) * 997;
+    uint256 denominator = uint256(reserveIn) * 1000 + uint256(amount) * 997;
     uint128 amountOut = uint128(numerator / denominator);
 
     IERC20(sourceToken).transferFrom(msg.sender, address(this), amount);
     IERC20(destinationToken).transfer(msg.sender, amountOut);
 
-    // TODO: cover both branches. Can be done when I will implement swapOut mechanic
-    if (sourceToken == pool.firstToken) {
-      pool.firstReserve += amount;
-      pool.secondReserve -= amountOut;
-    } else {
-      pool.secondReserve += amount;
-      pool.firstReserve -= amountOut;
-    }
+    updateReserves_(pool, sourceToken, destinationToken, amount, amountOut);
 
-    emit Swapped(msg.sender, sourceToken, destinationToken, amount, amountOut);
+    emit Swapped(msg.sender, sourceToken, destinationToken, amount * 997 / 1000, amountOut);
   }
 
   function swapOut(address destinationToken, uint128 amount, address sourceToken) external override {
@@ -133,7 +124,7 @@ contract Dexterity is IDexterity {
     uint256 poolId = computePoolId_(destinationToken, sourceToken);
     Pool storage pool = pools_[poolId];
 
-    uint128 reserveOut = destinationToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
+    (uint128 reserveIn, uint128 reserveOut) = getReserves_(pool, sourceToken, destinationToken);
 
     // a reserve at 0 means the pool is not supported by dexterity (not created)
     require(reserveOut == 0 || reserveOut >= amount, SwapInsufficientLiquidity());
@@ -143,24 +134,16 @@ contract Dexterity is IDexterity {
       return;
     }
 
-    uint128 reserveIn = sourceToken == pool.firstToken ? pool.firstReserve : pool.secondReserve;
     uint256 numerator = uint256(reserveIn) * amount * 1000;
     uint256 denominator = (uint256(reserveOut) - amount) * 997;
-    uint128 amountIn = uint128(numerator / denominator);
+    uint128 amountIn = uint128(numerator / denominator) + 1;
 
-    IERC20(destinationToken).transfer(msg.sender, amount);
     IERC20(sourceToken).transferFrom(msg.sender, address(this), amountIn);
+    IERC20(destinationToken).transfer(msg.sender, amount);
 
-    // TODO: cover both branches. Can be done when I will implement swapOut mechanic
-    if (sourceToken == pool.firstToken) {
-      pool.firstReserve += amountIn;
-      pool.secondReserve -= amount;
-    } else {
-      pool.secondReserve += amountIn;
-      pool.firstReserve -= amount;
-    }
+    updateReserves_(pool, sourceToken, destinationToken, amountIn, amount);
 
-    emit Swapped(msg.sender, sourceToken, destinationToken, amountIn, amount);
+    emit Swapped(msg.sender, sourceToken, destinationToken, amountIn * 997 / 1000, amount);
   }
 
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
@@ -196,5 +179,34 @@ contract Dexterity is IDexterity {
 
   function uniswapSwapTokensForExactTokens_(address destinationToken, uint256 amount, address sourceToken) internal {
     revert SwapUniswapForwardFailure();
+  }
+
+  function getReserves_(Pool storage pool, address sourceToken, address destinationToken)
+    private
+    view
+    returns (uint128 reserveIn, uint128 reserveOut)
+  {
+    (reserveIn, reserveOut) =
+      sourceToken == pool.firstToken ? (pool.firstReserve, pool.secondReserve) : (pool.secondReserve, pool.firstReserve);
+  }
+
+  function updateReserves_(
+    Pool storage pool,
+    address sourceToken,
+    address destinationToken,
+    uint128 amountIn,
+    uint128 amountOut
+  ) private {
+    if (sourceToken == pool.firstToken) {
+      pool.firstReserve += amountIn;
+      pool.secondReserve -= amountOut;
+    } else {
+      pool.secondReserve += amountIn;
+      pool.firstReserve -= amountOut;
+    }
+
+    emit PoolUpdated(
+      computePoolId_(sourceToken, destinationToken), sourceToken, destinationToken, int128(amountIn), -int128(amountOut)
+    );
   }
 }

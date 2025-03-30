@@ -60,10 +60,16 @@ interface IDexterity {
     uint128 secondTokenAmount
   );
 
-  // TODO: rename source and destination to in and out
+  // TODO: emit this on pool deposit too.
+  /// @dev successful pool updates emit this event
+  event PoolUpdated(
+    uint256 poolId, address indexed firstToken, address indexed secondToken, int128 firstOffset, int128 secondOffset
+  );
+
   /// @dev successful swaps emit this event
   event Swapped(
     address indexed sender,
+    // TODO: rename source and destination to in and out
     address indexed sourceToken,
     address indexed destinationToken,
     uint256 sourceAmount,
