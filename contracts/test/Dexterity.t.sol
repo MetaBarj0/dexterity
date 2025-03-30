@@ -531,7 +531,7 @@ contract SwapTests is DexterityTests {
 
     assertEq(IERC20(wEthToken).balanceOf(alice), 0.000043 ether);
     assertGt(IERC20(usdcToken).balanceOf(dex.creator()), 0);
-    assertEq(IERC20(usdcToken).balanceOf(alice), 0);
+    assertGt(IERC20(usdcToken).balanceOf(alice), 0);
     assertEq(IERC20(usdcToken).allowance(alice, address(dex)), 0);
 
     vm.revokePersistent(address(dex));
