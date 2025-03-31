@@ -11,8 +11,8 @@ contract Dexterity is IDexterity {
   address private immutable creator_;
 
   mapping(uint256 poolId => Pool) private pools_;
-  mapping(uint256 poolId => mapping(address holder => uint128)) holderPoolShares_;
-  mapping(uint256 poolId => uint128) totalPoolShares_;
+  mapping(uint256 poolId => mapping(address holder => uint128)) private holderPoolShares_;
+  mapping(uint256 poolId => uint128) private totalPoolShares_;
 
   constructor() {
     creator_ = msg.sender;
@@ -26,6 +26,10 @@ contract Dexterity is IDexterity {
     uint256 poolId = computePoolId_(firstToken, secondToken);
 
     return pools_[poolId];
+  }
+
+  function sharesOf(address holder, address firstToken, address secondToken) external view returns (uint128) {
+    return holderPoolShares_[computePoolId_(firstToken, secondToken)][holder];
   }
 
   function deposit(address firstToken, address secondToken, uint128 firstAmount, uint128 secondAmount)
@@ -52,8 +56,13 @@ contract Dexterity is IDexterity {
       emit PoolCreated(firstToken, secondToken, poolId);
     }
 
-    pool.firstReserve += firstAmount;
-    pool.secondReserve += secondAmount;
+    if (pool.firstToken == firstToken) {
+      pool.firstReserve += firstAmount;
+      pool.secondReserve += secondAmount;
+    } else {
+      pool.secondReserve += firstAmount;
+      pool.firstReserve += secondAmount;
+    }
 
     uint128 shares = uint128(Maths.sqrt(uint256(firstAmount) * secondAmount));
     holderPoolShares_[poolId][msg.sender] += shares;
@@ -82,8 +91,14 @@ contract Dexterity is IDexterity {
     totalPoolShares_[poolId] -= shares;
 
     Pool storage pool = pools_[poolId];
-    pool.firstReserve -= uint128(firstTokenAmount);
-    pool.secondReserve -= uint128(secondTokenAmount);
+
+    if (firstToken == pool.firstToken) {
+      pool.firstReserve -= uint128(firstTokenAmount);
+      pool.secondReserve -= uint128(secondTokenAmount);
+    } else {
+      pool.secondReserve -= uint128(firstTokenAmount);
+      pool.firstReserve -= uint128(secondTokenAmount);
+    }
 
     emit Withdrawn(firstToken, secondToken, shares, firstTokenAmount, secondTokenAmount);
   }

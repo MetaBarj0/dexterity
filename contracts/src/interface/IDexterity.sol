@@ -83,6 +83,18 @@ interface IDexterity {
   ///         (see pools_ state variable in Dexterity implementation)
   function getPool(address firstToken, address secondToken) external view returns (Pool memory);
 
+  /// @notice Obtains the share count of a holder for a pool containing
+  ///         specified token addresses
+  /// @dev simplified interface using token addresses instead of pool id
+  /// @param holder the address of the holder we want to get share count
+  /// @param firstToken the address of one of token handled byt the underlying
+  ///        pool
+  /// @param secondToken the address of one of token handled byt the underlying
+  ///        pool
+  /// @return shares share count of the specified holder in a pool containing
+  ///         token whose address are specified in arguments of this function.
+  function sharesOf(address holder, address firstToken, address secondToken) external view returns (uint128 shares);
+
   /// @notice Perform a deposit
   /// @dev Note the uint128 storage space for amounts.
   /// @param firstToken a token address used to get the pool

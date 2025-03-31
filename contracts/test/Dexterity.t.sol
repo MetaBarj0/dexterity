@@ -6,15 +6,17 @@ import { IDexterity } from "../src/interface/IDexterity.sol";
 
 import { TokenA } from "./ERC20/TokenA.sol";
 import { TokenB } from "./ERC20/TokenB.sol";
+import { TokenC } from "./ERC20/TokenC.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Test, console } from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
 abstract contract DexterityTests is Test {
   IDexterity internal dex;
 
   TokenA internal tokenA;
   TokenB internal tokenB;
+  TokenC internal tokenC;
 
   address internal alice;
   address internal bob;
@@ -23,17 +25,24 @@ abstract contract DexterityTests is Test {
   uint256 private beforeSwapK;
   uint256 private afterSwapK;
 
+  uint128 private aliceSharesBeforeTrades;
+  uint128 private aliceSharesAfterTrades;
+  uint128 private bobSharesBeforeTrades;
+  uint128 private bobSharesAfterTrades;
+
   function setUp() public {
     dex = new Dexterity();
 
     tokenA = new TokenA();
     tokenB = new TokenB();
+    tokenC = new TokenC();
 
     alice = makeAddr("alice");
     bob = makeAddr("bob");
     chuck = makeAddr("chuck");
   }
 
+  // TODO: subclass DexterityTests for Deposit, Withdraw, Swaps and ...
   function depositAB(uint128 firstAmount, uint128 secondAmount) internal {
     dex.deposit(address(tokenA), address(tokenB), firstAmount, secondAmount);
   }
@@ -177,7 +186,6 @@ abstract contract DexterityTests is Test {
 
     assertGt(beforeSwapK, (1000 * beforeSwapReserveIn + 997 * amountIn) * (reserveOut - 1) / 1000);
 
-    console.log(reserveIn);
     assertGt(reserveIn, beforeSwapReserveIn);
     assertEq(reserveOut, beforeSwapReserveOut - amountOut);
 
@@ -190,6 +198,89 @@ abstract contract DexterityTests is Test {
     return pool.firstToken == address(tokenIn)
       ? (pool.firstReserve, pool.secondReserve)
       : (pool.secondReserve, pool.firstReserve);
+  }
+
+  function setupHoldersForBigPool() internal {
+    deal(address(tokenB), alice, 10 ** 18 * 800_000);
+    deal(address(tokenC), alice, 10 ** 18 * 80_000_000);
+
+    deal(address(tokenB), bob, 10 ** 18 * 200_000);
+    deal(address(tokenC), bob, 10 ** 18 * 20_000_000);
+
+    vm.startPrank(alice);
+
+    tokenB.approve(address(dex), tokenB.balanceOf(alice));
+    tokenC.approve(address(dex), tokenC.balanceOf(alice));
+    dex.deposit(address(tokenC), address(tokenB), uint128(tokenC.balanceOf(alice)), uint128(tokenB.balanceOf(alice)));
+
+    vm.stopPrank();
+
+    vm.startPrank(bob);
+
+    tokenB.approve(address(dex), tokenB.balanceOf(bob));
+    tokenC.approve(address(dex), tokenC.balanceOf(bob));
+    dex.deposit(address(tokenB), address(tokenC), uint128(tokenB.balanceOf(bob)), uint128(tokenC.balanceOf(bob)));
+
+    vm.stopPrank();
+
+    aliceSharesBeforeTrades = dex.sharesOf(alice, address(tokenB), address(tokenC));
+    bobSharesBeforeTrades = dex.sharesOf(bob, address(tokenB), address(tokenC));
+  }
+
+  function setupTraderForBigPool() internal {
+    deal(address(tokenB), chuck, 10 ** 18 * 10_000);
+  }
+
+  function tradeWithSwapIn() internal {
+    vm.startPrank(chuck);
+
+    uint128 amountIn = uint128(tokenB.balanceOf(chuck) / 2);
+
+    tokenB.approve(address(dex), amountIn);
+    dex.swapIn(address(tokenB), amountIn, address(tokenC));
+
+    vm.stopPrank();
+  }
+
+  function tradeWithSwapOut() internal {
+    vm.startPrank(chuck);
+
+    tokenC.approve(address(dex), tokenC.balanceOf(chuck));
+
+    dex.swapOut(address(tokenB), 10 ** 18 * 4000, address(tokenC));
+
+    vm.stopPrank();
+  }
+
+  function withdrawHoldShares() internal {
+    vm.startPrank(alice);
+
+    dex.withdraw(address(tokenB), address(tokenC), dex.sharesOf(alice, address(tokenB), address(tokenC)));
+
+    tokenB.approve(address(dex), tokenB.balanceOf(alice));
+    tokenC.approve(address(dex), tokenC.balanceOf(alice));
+    dex.deposit(address(tokenB), address(tokenC), uint128(tokenB.balanceOf(alice)), uint128(tokenC.balanceOf(alice)));
+
+    aliceSharesAfterTrades = dex.sharesOf(alice, address(tokenB), address(tokenC));
+
+    vm.stopPrank();
+
+    vm.startPrank(bob);
+
+    dex.withdraw(address(tokenB), address(tokenC), dex.sharesOf(bob, address(tokenB), address(tokenC)));
+
+    tokenB.approve(address(dex), tokenB.balanceOf(bob));
+    tokenC.approve(address(dex), tokenC.balanceOf(bob));
+    dex.deposit(address(tokenB), address(tokenC), uint128(tokenB.balanceOf(bob)), uint128(tokenC.balanceOf(bob)));
+
+    bobSharesAfterTrades = dex.sharesOf(bob, address(tokenB), address(tokenC));
+
+    vm.stopPrank();
+  }
+
+  function ensureHoldersGotFees() internal view {
+    assertGt(aliceSharesAfterTrades, aliceSharesBeforeTrades);
+    assertGt(bobSharesAfterTrades, bobSharesBeforeTrades);
   }
 }
 
@@ -289,7 +380,7 @@ contract DepositTests is DexterityTests {
   }
 }
 
-contract WithdrawTests is DexterityTests {
+contract WithdrawWithoutFeeCollectionTests is DexterityTests {
   function test_withdraw_fails_whenSenderHasNotEnoughShares() public {
     vm.expectRevert(IDexterity.WithdrawNotEnoughShares.selector);
     dex.withdraw(address(tokenA), address(tokenB), 1);
@@ -527,13 +618,25 @@ contract SwapTests is DexterityTests {
 
     vm.stopPrank();
 
-    console.log(IERC20(usdcToken).balanceOf(alice));
-
     assertEq(IERC20(wEthToken).balanceOf(alice), 0.000043 ether);
     assertGt(IERC20(usdcToken).balanceOf(dex.creator()), 0);
     assertGt(IERC20(usdcToken).balanceOf(alice), 0);
     assertEq(IERC20(usdcToken).allowance(alice, address(dex)), 0);
 
     vm.revokePersistent(address(dex));
+  }
+}
+
+contract WithdrawWithFeeCollectionTests is DexterityTests {
+  function test_withdraw_succeeds_afterSwapAndCollectFeesForHolders() public {
+    setupHoldersForBigPool();
+    setupTraderForBigPool();
+
+    tradeWithSwapIn();
+    tradeWithSwapOut();
+
+    withdrawHoldShares();
+
+    ensureHoldersGotFees();
   }
 }
