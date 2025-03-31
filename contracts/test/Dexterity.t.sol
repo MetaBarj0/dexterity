@@ -503,7 +503,7 @@ contract SwapTests is DexterityTests {
     dex.swapOut(address(tokenB), 2, address(tokenA));
   }
 
-  function test_swapIn_forwardToUniswapV2_withUnsupportedPairAndFails() public {
+  function test_swapIn_Fails_whenForwardToUniswapV2WithUnsupportedPair() public {
     vm.makePersistent(address(dex));
     vm.makePersistent(address(tokenA));
     vm.makePersistent(address(tokenB));
@@ -527,7 +527,7 @@ contract SwapTests is DexterityTests {
     vm.revokePersistent(address(dex));
   }
 
-  function test_swapOut_forwardToUniswapV2_withUnsupportedPairAndFails() public {
+  function test_swapOut_Fails_whenForwardingToUniswapV2WithUnsupportedPair() public {
     vm.makePersistent(address(dex));
     vm.makePersistent(address(tokenA));
     vm.makePersistent(address(tokenB));
@@ -551,6 +551,29 @@ contract SwapTests is DexterityTests {
     vm.revokePersistent(address(dex));
   }
 
+  function test_swapOut_Fails_whenForwardingToUniswapV2AndNotEnoughBalanceToPayCreatorFee() public {
+    vm.makePersistent(address(dex));
+
+    vm.createSelectFork(vm.envString("MAINNET_URL"));
+    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+
+    address usdcToken = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address wEthToken = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    deal(usdcToken, alice, 90_000);
+
+    vm.startPrank(alice);
+
+    IERC20(usdcToken).approve(address(dex), 90_000);
+
+    vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
+    dex.swapOut(wEthToken, 0.0000436 ether, usdcToken);
+
+    vm.stopPrank();
+
+    vm.revokePersistent(address(dex));
+  }
+
   function test_swapIn_succeeds_withSmallPoolHugeTrade() public {
     prepareHugeTradeForSmallPool_(tokenB, tokenA);
 
@@ -567,7 +590,7 @@ contract SwapTests is DexterityTests {
     ensureCorrectnessOfHugeSwapOutForSmallPool_(tokenA, 10_000, 900, tokenB, 1_000_000);
   }
 
-  function test_swapIn_forwardToUniswapV2_succeeds_andTakesFeeForTheCreator() public {
+  function test_swapIn_Succeeds_whenForwardingToUniswapV2AndTakesFeeForTheCreator() public {
     vm.makePersistent(address(dex));
 
     vm.createSelectFork(vm.envString("MAINNET_URL"));
@@ -596,7 +619,7 @@ contract SwapTests is DexterityTests {
     vm.revokePersistent(address(dex));
   }
 
-  function test_swapOut_forwardToUniswapV2_succeeds_andTakesFeeForTheCreator() public {
+  function test_swapOut_Succeeds_whenForwardingToUniswapV2AndTakesFeeForTheCreator() public {
     vm.makePersistent(address(dex));
 
     vm.createSelectFork(vm.envString("MAINNET_URL"));

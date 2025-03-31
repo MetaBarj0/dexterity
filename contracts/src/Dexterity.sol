@@ -185,8 +185,6 @@ contract Dexterity is IDexterity {
       uint256[] memory
     ) {
       emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
-    } catch Error(string memory) {
-      revert SwapUniswapForwardFailure();
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
@@ -214,8 +212,6 @@ contract Dexterity is IDexterity {
       uint256[] memory
     ) {
       emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
-    } catch Error(string memory) {
-      revert SwapUniswapForwardFailure();
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
