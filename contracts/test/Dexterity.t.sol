@@ -555,7 +555,9 @@ contract SwapTests is DexterityTests {
     vm.makePersistent(address(dex));
 
     vm.createSelectFork(vm.envString("MAINNET_URL"));
-    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+
+    // ensure a fixed value for wEth
+    vm.rollFork(22_168_029);
 
     address usdcToken = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address wEthToken = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -564,10 +566,11 @@ contract SwapTests is DexterityTests {
 
     vm.startPrank(alice);
 
-    IERC20(usdcToken).approve(address(dex), 90_000);
+    // in this block 48_000_000 gwei are equivalent to 88_572 USDC
+    IERC20(usdcToken).approve(address(dex), 88_572);
 
     vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
-    dex.swapOut(wEthToken, 0.0000436 ether, usdcToken);
+    dex.swapOut(wEthToken, 48_000 gwei, usdcToken);
 
     vm.stopPrank();
 
