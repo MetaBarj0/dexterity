@@ -91,11 +91,20 @@ contract DepositAndSwapScript is Script {
 
     tokenA_.approve(address(dex), uint128(tokenA_.balanceOf(wallet.addr)));
     tokenB_.approve(address(dex), uint128(tokenB_.balanceOf(wallet.addr)));
+    tokenC_.approve(address(dex), uint128(tokenC_.balanceOf(wallet.addr)));
+
     dex.deposit(
       address(tokenA_),
       address(tokenB_),
       uint128(tokenA_.balanceOf(wallet.addr)),
-      uint128(tokenB_.balanceOf(wallet.addr))
+      uint128(tokenB_.balanceOf(wallet.addr) / 2)
+    );
+
+    dex.deposit(
+      address(tokenC_),
+      address(tokenB_),
+      uint128(tokenC_.balanceOf(wallet.addr)),
+      uint128(tokenB_.balanceOf(wallet.addr) / 2)
     );
 
     vm.stopBroadcast();
