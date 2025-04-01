@@ -68,7 +68,7 @@ contract Dexterity is IDexterity {
     holderPoolShares_[poolId][msg.sender] += shares;
     totalPoolShares_[poolId] += shares;
 
-    emit Deposited(firstToken, secondToken, firstAmount, secondAmount);
+    emit Deposited(msg.sender, firstToken, secondToken, firstAmount, secondAmount);
   }
 
   function withdraw(address firstToken, address secondToken, uint128 shares) external override {

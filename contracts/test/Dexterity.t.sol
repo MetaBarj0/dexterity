@@ -364,11 +364,11 @@ contract DepositTests is DexterityTests {
     IERC20(tokenB).approve(address(dex), 6);
 
     vm.expectEmit();
-    emit IDexterity.Deposited(address(tokenA), address(tokenB), 1, 2);
+    emit IDexterity.Deposited(alice, address(tokenA), address(tokenB), 1, 2);
     depositAB(1, 2);
 
     vm.expectEmit();
-    emit IDexterity.Deposited(address(tokenA), address(tokenB), 2, 4);
+    emit IDexterity.Deposited(alice, address(tokenA), address(tokenB), 2, 4);
     depositAB(2, 4);
 
     assertEq(tokenA.balanceOf(alice), 0);

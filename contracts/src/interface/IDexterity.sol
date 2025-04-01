@@ -49,7 +49,13 @@ interface IDexterity {
   event PoolCreated(address indexed firstToken, address indexed secondToken, uint256 indexed poolId);
 
   /// @dev deposit successfully done emit this event
-  event Deposited(address indexed firstToken, address indexed secondToken, uint256 firstAmount, uint256 secondAmount);
+  event Deposited(
+    address indexed sender,
+    address indexed firstToken,
+    address indexed secondToken,
+    uint256 firstAmount,
+    uint256 secondAmount
+  );
 
   /// @dev successful withdraws emit this event
   event Withdrawn(
