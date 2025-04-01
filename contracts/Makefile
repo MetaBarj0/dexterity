@@ -2,13 +2,13 @@ MAKEFILE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
 include $(MAKEFILE_DIR)/.env
 
-$(MAKEFILE_DIR).env:
-	@cd $(MAKEFILE_DIR)
-	@cp .env.sample .env
+$(MAKEFILE_DIR)/.env:
+	@cd $(MAKEFILE_DIR) && cp .env.sample .env
 
 build:
-	@git submodule update --init --recursive
-	@forge build
+	@cd $(MAKEFILE_DIR) \
+		&& git submodule update --init --recursive \
+		&& forge build
 
 .PHONY: test
 test:
@@ -43,7 +43,7 @@ local_deploy: run_local_blockchain
 		&& break || sleep 1; done
 
 run: script=
-run:
+run: build
 	@cd $(MAKEFILE_DIR) && [ -z "$${script}" ] \
 		&& echo 'You have to specify a script name' \
 		&& exit 1 \
