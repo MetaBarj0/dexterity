@@ -95,19 +95,13 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 app.listen(port, () => {
-  // connect to the local blockchain
   const provider = ethers.getDefaultProvider("http://localhost:8545");
 
-  // create the Dexterity contract
   const dexterityAddress =
     latestRunJson.transactions.filter((item) => item.contractName === "Dexterity").at(0)?.contractAddress;
 
-  if (!dexterityAddress) {
-    throw new Error("Cannot get the Dexterity smart contract address");
-  }
-
   const dexterityAbi = latestOutDexterityJson.abi;
-  dexterity = new ethers.Contract(dexterityAddress, dexterityAbi, provider);
+  dexterity = new ethers.Contract(dexterityAddress!, dexterityAbi, provider);
 
   console.log(`Listening on ${port}`)
 })

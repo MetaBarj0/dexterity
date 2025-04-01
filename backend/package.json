@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile": "npx tsc",
-    "start": "npm run compile && node dist/backend/src/index.js"
+    "forge_script": "make -f ../contracts/Makefile run script=DepositsAndSwaps",
+    "start": "npm run forge_script && npm run compile && node dist/backend/src/index.js"
   },
   "author": "m374-crypt0",
   "license": "MIT",
