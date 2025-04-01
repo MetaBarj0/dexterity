@@ -38,8 +38,22 @@ local_deploy: run_local_blockchain
 		  --broadcast \
 		&& break || sleep 1; done
 
-sepolia_deploy:
-	@forge script script/SepoliaDeploy.s.sol --rpc-url sepolia --broadcast --verify
+run: script=
+run:
+	@[ -z "$${script}" ] \
+		&& echo 'You have to specify a script name' \
+		&& exit 1 \
+		|| exit 0
+	@[ ! -f "script/$${script}.s.sol" ] \
+		&& echo "Unexisting script: script/$${script}.s.sol" \
+		&& exit 1 \
+		|| exit 0
+	@$(MAKE) local_deploy \
+		&& forge script "script/$${script}.s.sol" \
+		  --private-key '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80' \
+		  --rpc-url local \
+		  --broadcast
+
 
 .anvil.pid:
 	@[ -z "$$(pidof anvil)" ] && \
@@ -53,3 +67,5 @@ sepolia_deploy:
 			& echo $$!>.anvil.pid || \
 		echo $$(pidof anvil) > .anvil.pid
 
+sepolia_deploy:
+	@forge script script/SepoliaDeploy.s.sol --rpc-url sepolia --broadcast --verify
