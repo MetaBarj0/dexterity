@@ -36,7 +36,6 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/tokens', async (_req, res) => {
-  // collect all PoolCreated events to get all token addresses
   const poolCreatedFilter = dexterity.filters.PoolCreated(undefined, undefined, undefined);
   const filterLog = await dexterity.queryFilter(poolCreatedFilter);
   const poolCreatedEvents = filterLog as ethers.EventLog[];
@@ -63,7 +62,6 @@ app.get('/swaps', async (_req, res) => {
 });
 
 app.get('/traders', async (_req, res) => {
-  // collect all PoolCreated events to get all token addresses
   const swappedFilter = dexterity.filters.Swapped();
   const filterLog = await dexterity.queryFilter(swappedFilter);
   const swappedEvents = filterLog as ethers.EventLog[];
@@ -72,6 +70,19 @@ app.get('/traders', async (_req, res) => {
     return [...acc, e.args[0]];
   }, []));
   const traderAddresses = Array.from(traderAddressSet).map(address => address.toLowerCase());
+
+  res.send(traderAddresses);
+});
+
+app.get('/holders', async (_req, res) => {
+  const depositedFilter = dexterity.filters.Deposited();
+  const filterLog = await dexterity.queryFilter(depositedFilter);
+  const depositedEvents = filterLog as ethers.EventLog[];
+
+  const holderAddressSet = new Set<string>(depositedEvents.reduce((acc: string[], e) => {
+    return [...acc, e.args[0]];
+  }, []));
+  const traderAddresses = Array.from(holderAddressSet).map(address => address.toLowerCase());
 
   res.send(traderAddresses);
 });
