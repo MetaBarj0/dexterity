@@ -6,8 +6,14 @@ import { Dexterity } from "../src/Dexterity.sol";
 import { Script, console } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
 
-contract DepositAndSwapScript is Script {
+contract SepoliaDeployScript is Script {
   function setUp() public { }
 
-  function run() public { }
+  function run() public {
+    vm.startBroadcast();
+
+    new Dexterity();
+
+    vm.stopBroadcast();
+  }
 }
