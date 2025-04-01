@@ -22,6 +22,14 @@ app.get('/', (_req, res) => {
       {
         path: '/swaps',
         description: 'return swap count that have bee executed in dexterity'
+      },
+      {
+        path: '/traders',
+        description: 'return users of the protocol'
+      },
+      {
+        path: '/holders',
+        description: 'return depositors of the protocol'
       }
     ]
   });
@@ -52,6 +60,20 @@ app.get('/swaps', async (_req, res) => {
   const filterLog = await dexterity.queryFilter(swappedFilter);
 
   res.send(filterLog.length);
+});
+
+app.get('/traders', async (_req, res) => {
+  // collect all PoolCreated events to get all token addresses
+  const swappedFilter = dexterity.filters.Swapped();
+  const filterLog = await dexterity.queryFilter(swappedFilter);
+  const swappedEvents = filterLog as ethers.EventLog[];
+
+  const traderAddressSet = new Set<string>(swappedEvents.reduce((acc: string[], e) => {
+    return [...acc, e.args[0]];
+  }, []));
+  const traderAddresses = Array.from(traderAddressSet).map(address => address.toLowerCase());
+
+  res.send(traderAddresses);
 });
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
