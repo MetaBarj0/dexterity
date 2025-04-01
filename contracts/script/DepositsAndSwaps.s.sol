@@ -26,12 +26,36 @@ contract DepositAndSwapScript is Script {
 
   function run() public {
     doDeposits_();
+    doSwaps_();
   }
 
   function doDeposits_() private {
-    provisionHolders_();
+    provisionUser_("alice");
+    provisionUser_("bob");
+    provisionUser_("chuck");
+
     makeDeposit_("alice");
     makeDeposit_("bob");
+  }
+
+  function doSwaps_() private {
+    Vm.Wallet storage chuck = wallets_["chuck"];
+
+    vm.startBroadcast(chuck.privateKey);
+
+    tokenB_.approve(address(dex), tokenB_.balanceOf(chuck.addr));
+    dex.swapOut(address(tokenA_), 1000, address(tokenB_));
+    tokenB_.approve(address(dex), 0);
+
+    vm.stopBroadcast();
+
+    vm.startBroadcast(chuck.privateKey);
+
+    tokenC_.approve(address(dex), tokenC_.balanceOf(chuck.addr));
+    dex.swapIn(address(tokenC_), 10_000, address(tokenB_));
+    tokenC_.approve(address(dex), 0);
+
+    vm.stopBroadcast();
   }
 
   function setupWallets_() private {
@@ -63,23 +87,18 @@ contract DepositAndSwapScript is Script {
     vm.stopBroadcast();
   }
 
-  function provisionHolders_() private {
+  function provisionUser_(string memory who) private {
     uint128 sAmount = 10 ** 18 * 10_000;
     uint128 mAmount = 10 ** 18 * 1_000_000;
     uint128 lAmount = 10 ** 18 * 100_000_000;
 
-    Vm.Wallet storage alice = wallets_["alice"];
-    Vm.Wallet storage bob = wallets_["bob"];
+    Vm.Wallet storage holder = wallets_[who];
 
     vm.startBroadcast();
 
-    tokenA_.mintFor(alice.addr, 2 * sAmount);
-    tokenB_.mintFor(alice.addr, 2 * mAmount);
-    tokenC_.mintFor(alice.addr, 2 * lAmount);
-
-    tokenA_.mintFor(bob.addr, sAmount);
-    tokenB_.mintFor(bob.addr, mAmount);
-    tokenC_.mintFor(bob.addr, lAmount);
+    tokenA_.mintFor(holder.addr, 2 * sAmount);
+    tokenB_.mintFor(holder.addr, 2 * mAmount);
+    tokenC_.mintFor(holder.addr, 2 * lAmount);
 
     vm.stopBroadcast();
   }
