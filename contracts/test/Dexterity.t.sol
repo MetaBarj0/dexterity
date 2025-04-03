@@ -137,6 +137,23 @@ abstract contract DexterityTests is Test {
     afterSwapK = afterSwapPool.firstReserve * afterSwapPool.secondReserve;
   }
 
+  modifier setupUniswapV2SwapForward() {
+    vm.makePersistent(address(dex));
+    vm.makePersistent(address(tokenA));
+    vm.makePersistent(address(tokenB));
+
+    vm.createSelectFork(vm.envString("MAINNET_URL"));
+    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+
+    deal(address(tokenA), alice, 1000);
+
+    _;
+
+    vm.revokePersistent(address(tokenB));
+    vm.revokePersistent(address(tokenA));
+    vm.revokePersistent(address(dex));
+  }
+
   function performHugeSwapInForSmallPool_(IERC20 tokenIn, uint128 amountIn, IERC20 tokenOut)
     internal
     setupSwap(tokenIn, tokenOut)
@@ -284,7 +301,7 @@ abstract contract DexterityTests is Test {
   }
 }
 
-contract DeployTests is DexterityTests {
+contract DeploymentTests is DexterityTests {
   function test_deploy_creatorIsSet() public view {
     assertEq(dex.creator(), address(this));
   }
@@ -503,16 +520,7 @@ contract SwapTests is DexterityTests {
     dex.swapOut(address(tokenB), 2, address(tokenA));
   }
 
-  function test_swapIn_Fails_whenForwardToUniswapV2WithUnsupportedPair() public {
-    vm.makePersistent(address(dex));
-    vm.makePersistent(address(tokenA));
-    vm.makePersistent(address(tokenB));
-
-    vm.createSelectFork(vm.envString("MAINNET_URL"));
-    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
-
-    deal(address(tokenA), alice, 1000);
-
+  function test_swapIn_fails_whenForwardToUniswapV2WithUnsupportedPair() public setupUniswapV2SwapForward {
     vm.startPrank(alice);
 
     tokenA.approve(address(dex), 1000);
@@ -521,22 +529,22 @@ contract SwapTests is DexterityTests {
     dex.swapIn(address(tokenA), 1000, address(tokenB));
 
     vm.stopPrank();
-
-    vm.revokePersistent(address(tokenB));
-    vm.revokePersistent(address(tokenA));
-    vm.revokePersistent(address(dex));
   }
 
-  function test_swapOut_Fails_whenForwardingToUniswapV2WithUnsupportedPair() public {
-    vm.makePersistent(address(dex));
-    vm.makePersistent(address(tokenA));
-    vm.makePersistent(address(tokenB));
+  function test_swapIn_fails_whenForwardToUniswapV2WithTokenFailingApproval() public setupUniswapV2SwapForward {
+    vm.startPrank(alice);
 
-    vm.createSelectFork(vm.envString("MAINNET_URL"));
-    vm.rollFork(vm.envUint("MAINNET_FORK_BLOCK"));
+    tokenA.approve(address(dex), 1000);
 
-    deal(address(tokenA), alice, 1000);
+    tokenA.setApproveToFail(true);
 
+    vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
+    dex.swapIn(address(tokenA), 1000, address(tokenB));
+
+    vm.stopPrank();
+  }
+
+  function test_swapOut_fails_whenForwardingToUniswapV2WithUnsupportedPair() public setupUniswapV2SwapForward {
     vm.startPrank(alice);
 
     tokenA.approve(address(dex), 1000);
@@ -545,13 +553,22 @@ contract SwapTests is DexterityTests {
     dex.swapOut(address(tokenB), 1000, address(tokenA));
 
     vm.stopPrank();
-
-    vm.revokePersistent(address(tokenB));
-    vm.revokePersistent(address(tokenA));
-    vm.revokePersistent(address(dex));
   }
 
-  function test_swapOut_Fails_whenForwardingToUniswapV2AndNotEnoughBalanceToPayCreatorFee() public {
+  function test_swapOut_fails_whenForwardingToUniswapV2WithTokenFailingApproval() public setupUniswapV2SwapForward {
+    vm.startPrank(alice);
+
+    tokenA.approve(address(dex), 1000);
+
+    tokenA.setApproveToFail(true);
+
+    vm.expectRevert(IDexterity.SwapUniswapForwardFailure.selector);
+    dex.swapOut(address(tokenB), 1000, address(tokenA));
+
+    vm.stopPrank();
+  }
+
+  function test_swapOut_fails_whenForwardingToUniswapV2AndNotEnoughBalanceToPayCreatorFee() public {
     vm.makePersistent(address(dex));
 
     vm.createSelectFork(vm.envString("MAINNET_URL"));
