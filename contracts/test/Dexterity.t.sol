@@ -78,12 +78,6 @@ abstract contract DexterityTests is Test {
     vm.stopPrank();
   }
 
-  function getPoolABInvariant() internal view returns (uint256) {
-    IDexterity.Pool memory pool = dex.getPool(address(tokenA), address(tokenB));
-
-    return pool.firstReserve * pool.secondReserve;
-  }
-
   function assertPoolReserveABEq(uint128 reserveA, uint128 reserveB) internal view {
     IDexterity.Pool memory pool = dex.getPool(address(tokenA), address(tokenB));
 
