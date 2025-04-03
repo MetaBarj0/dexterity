@@ -4,10 +4,11 @@ out = "out"
 libs = ["lib"]
 solc_version = "0.8.28"
 evm_version = "paris"
-
 remappings = ["@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"]
-
 gas_reports = ["Dexterity"]
+optimizer = true
+optimizer_runs = 999999
+via_ir = false
 
 [rpc_endpoints]
 sepolia = "${SEPOLIA_URL}"
