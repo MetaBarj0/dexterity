@@ -5,6 +5,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract TokenA is ERC20 {
   address private owner_;
+  bool approveMustFail_;
 
   error Unauthorized();
 
@@ -20,6 +21,12 @@ contract TokenA is ERC20 {
     return 18;
   }
 
+  function approve(address spender, uint256 value) public override returns (bool) {
+    if (approveMustFail_) return false;
+
+    return super.approve(spender, value);
+  }
+
   function mintFor(address to, uint256 amount) external {
     require(msg.sender == owner_, Unauthorized());
 
@@ -32,5 +39,9 @@ contract TokenA is ERC20 {
     if (amount > totalSupply()) amount = totalSupply();
 
     _burn(from, amount);
+  }
+
+  function setApproveToFail(bool value) external {
+    approveMustFail_ = value;
   }
 }
