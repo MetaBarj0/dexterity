@@ -7,6 +7,8 @@ evm_version = "paris"
 
 remappings = ["@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"]
 
+gas_reports = ["Dexterity"]
+
 [rpc_endpoints]
 sepolia = "${SEPOLIA_URL}"
 mainnet = "${MAINNET_URL}"

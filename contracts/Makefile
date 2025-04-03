@@ -12,7 +12,7 @@ build:
 
 .PHONY: test
 test:
-	@cd $(MAKEFILE_DIR) && forge test
+	@cd $(MAKEFILE_DIR) && forge test --gas-report
 
 testv:
 	@cd $(MAKEFILE_DIR) && forge test -vvv
