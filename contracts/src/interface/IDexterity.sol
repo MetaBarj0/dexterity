@@ -45,6 +45,9 @@ interface IDexterity {
   /// @dev triggered when a forward to uniswap v2 router 02 failed
   error SwapUniswapForwardFailure();
 
+  /// @dev thrown when a re-entrancy is done where it is forbidden
+  error DexterityReentrancy();
+
   /// @dev emitted only whe the first deposit is made into a pool.
   event PoolCreated(address indexed firstToken, address indexed secondToken, uint256 indexed poolId);
 

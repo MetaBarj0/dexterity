@@ -12,6 +12,7 @@ using SafeERC20 for IERC20;
 
 contract Dexterity is IDexterity {
   address private immutable creator_;
+  bool locked_;
 
   mapping(uint256 poolId => Pool) private pools_;
   mapping(uint256 poolId => mapping(address holder => uint128)) private holderPoolShares_;
@@ -46,11 +47,10 @@ contract Dexterity is IDexterity {
     uint256 poolId = computePoolId_(firstToken, secondToken);
     Pool storage pool = pools_[poolId];
 
-    require(uint256(pool.firstReserve) + uint256(firstAmount) <= type(uint128).max, DepositOverflowing());
-    require(uint256(pool.secondReserve) + uint256(secondAmount) <= type(uint128).max, DepositOverflowing());
-
-    IERC20(firstToken).safeTransferFrom(msg.sender, address(this), firstAmount);
-    IERC20(secondToken).safeTransferFrom(msg.sender, address(this), secondAmount);
+    unchecked {
+      require(uint256(pool.firstReserve) + uint256(firstAmount) <= type(uint128).max, DepositOverflowing());
+      require(uint256(pool.secondReserve) + uint256(secondAmount) <= type(uint128).max, DepositOverflowing());
+    }
 
     if (pool.firstReserve == 0) {
       pool.firstToken = firstToken;
@@ -59,19 +59,24 @@ contract Dexterity is IDexterity {
       emit PoolCreated(firstToken, secondToken, poolId);
     }
 
-    if (pool.firstToken == firstToken) {
-      pool.firstReserve += firstAmount;
-      pool.secondReserve += secondAmount;
-    } else {
-      pool.secondReserve += firstAmount;
-      pool.firstReserve += secondAmount;
+    unchecked {
+      if (pool.firstToken == firstToken) {
+        pool.firstReserve += firstAmount;
+        pool.secondReserve += secondAmount;
+      } else {
+        pool.secondReserve += firstAmount;
+        pool.firstReserve += secondAmount;
+      }
+
+      uint128 shares = uint128(Maths.sqrt(uint256(firstAmount) * secondAmount));
+      holderPoolShares_[poolId][msg.sender] += shares;
+      totalPoolShares_[poolId] += shares;
     }
 
-    uint128 shares = uint128(Maths.sqrt(uint256(firstAmount) * secondAmount));
-    holderPoolShares_[poolId][msg.sender] += shares;
-    totalPoolShares_[poolId] += shares;
-
     emit Deposited(msg.sender, firstToken, secondToken, firstAmount, secondAmount);
+
+    IERC20(firstToken).safeTransferFrom(msg.sender, address(this), firstAmount);
+    IERC20(secondToken).safeTransferFrom(msg.sender, address(this), secondAmount);
   }
 
   function withdraw(address firstToken, address secondToken, uint128 shares) external override {
@@ -84,11 +89,14 @@ contract Dexterity is IDexterity {
 
     uint128 poolShares = totalPoolShares_[poolId];
 
-    uint128 firstTokenAmount = uint128((uint256(shares) * poolFirstTokenBalance) / poolShares);
-    uint128 secondTokenAmount = uint128((uint256(shares) * poolSecondTokenBalance) / poolShares);
+    uint128 firstTokenAmount = uint128((uint256(shares) * poolFirstTokenBalance));
+    uint128 secondTokenAmount = uint128((uint256(shares) * poolSecondTokenBalance));
 
-    IERC20(firstToken).safeTransfer(msg.sender, firstTokenAmount);
-    IERC20(secondToken).safeTransfer(msg.sender, secondTokenAmount);
+    // Pool shares canot be 0
+    assembly {
+      firstTokenAmount := div(firstTokenAmount, poolShares)
+      secondTokenAmount := div(secondTokenAmount, poolShares)
+    }
 
     holderPoolShares_[poolId][msg.sender] -= shares;
     totalPoolShares_[poolId] -= shares;
@@ -104,6 +112,9 @@ contract Dexterity is IDexterity {
     }
 
     emit Withdrawn(firstToken, secondToken, shares, firstTokenAmount, secondTokenAmount);
+
+    IERC20(firstToken).safeTransfer(msg.sender, firstTokenAmount);
+    IERC20(secondToken).safeTransfer(msg.sender, secondTokenAmount);
   }
 
   function swapIn(address tokenIn, uint128 amountIn, address tokenOut) external override {
@@ -127,12 +138,12 @@ contract Dexterity is IDexterity {
     uint256 denominator = uint256(reserveIn) * 1000 + uint256(amountIn) * 997;
     uint128 amountOut = uint128(numerator / denominator);
 
-    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-    IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
-
     updateReserves_(pool, tokenIn, tokenOut, amountIn, amountOut);
 
     emit Swapped(msg.sender, tokenIn, tokenOut, amountIn * 997 / 1000, amountOut);
+
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
   }
 
   function swapOut(address tokenOut, uint128 amountOut, address tokenIn) external override {
@@ -156,19 +167,30 @@ contract Dexterity is IDexterity {
     uint256 denominator = (uint256(reserveOut) - amountOut) * 997;
     uint128 amountIn = uint128(numerator / denominator) + 1;
 
-    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
-    IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
-
     updateReserves_(pool, tokenIn, tokenOut, amountIn, amountOut);
 
     emit Swapped(msg.sender, tokenIn, tokenOut, amountIn * 997 / 1000, amountOut);
+
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
   }
 
   function computePoolId_(address firstToken, address secondToken) private pure returns (uint256) {
     return uint256(keccak256(abi.encodePacked(bytes20(firstToken) ^ bytes20(secondToken))));
   }
 
-  function uniswapSwapExactTokensForTokens_(address tokenIn, uint256 amountIn, address tokenOut) internal {
+  modifier preventReentrancy() {
+    require(!locked_, DexterityReentrancy());
+
+    locked_ = true;
+    _;
+    locked_ = false;
+  }
+
+  function uniswapSwapExactTokensForTokens_(address tokenIn, uint256 amountIn, address tokenOut)
+    internal
+    preventReentrancy
+  {
     emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
 
     IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
@@ -198,7 +220,10 @@ contract Dexterity is IDexterity {
     }
   }
 
-  function uniswapSwapTokensForExactTokens_(address tokenOut, uint256 amountOut, address tokenIn) internal {
+  function uniswapSwapTokensForExactTokens_(address tokenOut, uint256 amountOut, address tokenIn)
+    internal
+    preventReentrancy
+  {
     emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
 
     uint256 tokenInAllowance = IERC20(tokenIn).allowance(msg.sender, address(this));
