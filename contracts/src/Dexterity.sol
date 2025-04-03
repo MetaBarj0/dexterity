@@ -6,6 +6,9 @@ import { IDexterity } from "./interface/IDexterity.sol";
 import { IUniswapV2Router02 } from "./interface/IUniswapV2Router02.sol";
 import { Maths } from "./library/Maths.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+using SafeERC20 for IERC20;
 
 contract Dexterity is IDexterity {
   address private immutable creator_;
@@ -46,8 +49,8 @@ contract Dexterity is IDexterity {
     require(uint256(pool.firstReserve) + uint256(firstAmount) <= type(uint128).max, DepositOverflowing());
     require(uint256(pool.secondReserve) + uint256(secondAmount) <= type(uint128).max, DepositOverflowing());
 
-    IERC20(firstToken).transferFrom(msg.sender, address(this), firstAmount);
-    IERC20(secondToken).transferFrom(msg.sender, address(this), secondAmount);
+    IERC20(firstToken).safeTransferFrom(msg.sender, address(this), firstAmount);
+    IERC20(secondToken).safeTransferFrom(msg.sender, address(this), secondAmount);
 
     if (pool.firstReserve == 0) {
       pool.firstToken = firstToken;
@@ -84,8 +87,8 @@ contract Dexterity is IDexterity {
     uint128 firstTokenAmount = uint128((uint256(shares) * poolFirstTokenBalance) / poolShares);
     uint128 secondTokenAmount = uint128((uint256(shares) * poolSecondTokenBalance) / poolShares);
 
-    IERC20(firstToken).transfer(msg.sender, firstTokenAmount);
-    IERC20(secondToken).transfer(msg.sender, secondTokenAmount);
+    IERC20(firstToken).safeTransfer(msg.sender, firstTokenAmount);
+    IERC20(secondToken).safeTransfer(msg.sender, secondTokenAmount);
 
     holderPoolShares_[poolId][msg.sender] -= shares;
     totalPoolShares_[poolId] -= shares;
@@ -124,8 +127,8 @@ contract Dexterity is IDexterity {
     uint256 denominator = uint256(reserveIn) * 1000 + uint256(amountIn) * 997;
     uint128 amountOut = uint128(numerator / denominator);
 
-    IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-    IERC20(tokenOut).transfer(msg.sender, amountOut);
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
 
     updateReserves_(pool, tokenIn, tokenOut, amountIn, amountOut);
 
@@ -153,8 +156,8 @@ contract Dexterity is IDexterity {
     uint256 denominator = (uint256(reserveOut) - amountOut) * 997;
     uint128 amountIn = uint128(numerator / denominator) + 1;
 
-    IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-    IERC20(tokenOut).transfer(msg.sender, amountOut);
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenOut).safeTransfer(msg.sender, amountOut);
 
     updateReserves_(pool, tokenIn, tokenOut, amountIn, amountOut);
 
@@ -166,13 +169,18 @@ contract Dexterity is IDexterity {
   }
 
   function uniswapSwapExactTokensForTokens_(address tokenIn, uint256 amountIn, address tokenOut) internal {
-    IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-    IERC20(tokenIn).transfer(creator_, amountIn * 2 / 1000);
+    emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
+
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountIn);
+    IERC20(tokenIn).safeTransfer(creator_, amountIn * 2 / 1000);
 
     uint256 amountMinusCreatorFee = amountIn * 998 / 1000; // creator fee model: 0.02%
 
     address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    IERC20(tokenIn).approve(uniswap, amountMinusCreatorFee);
+
+    if (!IERC20(tokenIn).approve(uniswap, amountMinusCreatorFee)) {
+      revert SwapUniswapForwardFailure();
+    }
 
     IUniswapV2Router02 router = IUniswapV2Router02(uniswap);
 
@@ -182,22 +190,25 @@ contract Dexterity is IDexterity {
     path[1] = tokenOut;
 
     try router.swapExactTokensForTokens(amountMinusCreatorFee, 0, path, msg.sender, type(uint256).max) returns (
-      uint256[] memory
+      uint256[] memory /*ignored*/
     ) {
-      emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
+      // ignore return value, unuseful in Dexterity
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
-
-    IERC20(tokenIn).approve(uniswap, 0);
   }
 
   function uniswapSwapTokensForExactTokens_(address tokenOut, uint256 amountOut, address tokenIn) internal {
+    emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
+
     uint256 tokenInAllowance = IERC20(tokenIn).allowance(msg.sender, address(this));
-    IERC20(tokenIn).transferFrom(msg.sender, address(this), tokenInAllowance);
+    IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), tokenInAllowance);
 
     address uniswap = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    IERC20(tokenIn).approve(uniswap, tokenInAllowance);
+
+    if (!IERC20(tokenIn).approve(uniswap, tokenInAllowance)) {
+      revert SwapUniswapForwardFailure();
+    }
 
     IUniswapV2Router02 router = IUniswapV2Router02(uniswap);
 
@@ -209,16 +220,14 @@ contract Dexterity is IDexterity {
     uint256 tokenInBalanceBeforeSwap = IERC20(tokenIn).balanceOf(address(this));
 
     try router.swapTokensForExactTokens(amountOut, tokenInAllowance, path, msg.sender, type(uint256).max) returns (
-      uint256[] memory
+      uint256[] memory /*ignored*/
     ) {
-      emit Swapped(msg.sender, tokenIn, tokenOut, 0, 0);
+      //ignore return value, unuseful in Dexterity
     } catch (bytes memory) {
       revert SwapUniswapForwardFailure();
     }
 
     uint256 tokenInBalanceAfterSwap = IERC20(tokenIn).balanceOf(address(this));
-
-    IERC20(tokenIn).approve(uniswap, 0);
 
     uint256 spent = tokenInBalanceBeforeSwap - tokenInBalanceAfterSwap;
     uint256 creatorFee = spent * 2 / 1000;
@@ -227,8 +236,8 @@ contract Dexterity is IDexterity {
 
     uint256 refund = tokenInBalanceAfterSwap - creatorFee;
 
-    IERC20(tokenIn).transfer(creator(), creatorFee);
-    IERC20(tokenIn).transfer(msg.sender, refund);
+    IERC20(tokenIn).safeTransfer(creator(), creatorFee);
+    IERC20(tokenIn).safeTransfer(msg.sender, refund);
   }
 
   function getReserves_(Pool storage pool, address tokenIn)
