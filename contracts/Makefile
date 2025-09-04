@@ -73,4 +73,4 @@ run: build
 		echo $$(pidof anvil) > .anvil.pid
 
 sepolia_deploy:
-	cd $(MAKEFILE_DIR) && @forge script script/SepoliaDeploy.s.sol --rpc-url sepolia --broadcast --verify
+	cd $(MAKEFILE_DIR) && forge script script/SepoliaDeploy.s.sol --rpc-url sepolia --broadcast --verify
