@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { Dexterity } from "../src/Dexterity.sol";
 import { IDexterity } from "../src/interface/IDexterity.sol";
@@ -651,11 +651,11 @@ contract SwapTests is DexterityTests {
     vm.expectEmit(true, true, true, false);
     emit IDexterity.Swapped(alice, usdcToken, wEthToken, 0, 0);
 
-    dex.swapOut(wEthToken, 0.000043 ether, usdcToken);
+    dex.swapOut(wEthToken, 0.000023 ether, usdcToken);
 
     vm.stopPrank();
 
-    assertEq(IERC20(wEthToken).balanceOf(alice), 0.000043 ether);
+    assertEq(IERC20(wEthToken).balanceOf(alice), 0.000023 ether);
     assertGt(IERC20(usdcToken).balanceOf(dex.creator()), 0);
     assertGt(IERC20(usdcToken).balanceOf(alice), 0);
     assertEq(IERC20(usdcToken).allowance(alice, address(dex)), 0);

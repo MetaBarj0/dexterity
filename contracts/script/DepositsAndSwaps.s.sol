@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { Dexterity } from "../src/Dexterity.sol";
 import { IDexterity } from "../src/interface/IDexterity.sol";
@@ -11,9 +11,14 @@ import { Script, console } from "forge-std/Script.sol";
 import { Vm } from "forge-std/Vm.sol";
 
 contract DepositAndSwapScript is Script {
+  struct Wallet {
+    uint256 pkey;
+    address addr;
+  }
+
   IDexterity dex;
 
-  mapping(string who => Vm.Wallet) private wallets_;
+  mapping(string who => Wallet) private wallets_;
 
   TokenA private tokenA_;
   TokenB private tokenB_;
@@ -39,9 +44,9 @@ contract DepositAndSwapScript is Script {
   }
 
   function doSwaps_() private {
-    Vm.Wallet storage chuck = wallets_["chuck"];
+    Wallet storage chuck = wallets_["chuck"];
 
-    vm.startBroadcast(chuck.privateKey);
+    vm.startBroadcast(chuck.pkey);
 
     tokenB_.approve(address(dex), tokenB_.balanceOf(chuck.addr));
     dex.swapOut(address(tokenA_), 1000, address(tokenB_));
@@ -49,7 +54,7 @@ contract DepositAndSwapScript is Script {
 
     vm.stopBroadcast();
 
-    vm.startBroadcast(chuck.privateKey);
+    vm.startBroadcast(chuck.pkey);
 
     tokenC_.approve(address(dex), tokenC_.balanceOf(chuck.addr));
     dex.swapIn(address(tokenC_), 10_000, address(tokenB_));
@@ -59,20 +64,16 @@ contract DepositAndSwapScript is Script {
   }
 
   function setupWallets_() private {
-    setupWallet_("alice");
-    setupWallet_("bob");
-    setupWallet_("chuck");
+    setupWallet_("alice", "TEST_PRIVATE_KEY_01");
+    setupWallet_("bob", "TEST_PRIVATE_KEY_02");
+    setupWallet_("chuck", "TEST_PRIVATE_KEY_03");
   }
 
-  function setupWallet_(string memory who) private {
-    (, uint256 pkey) = makeAddrAndKey(who);
-    Vm.Wallet memory wallet = vm.createWallet(pkey);
-
-    vm.startBroadcast();
-    payable(wallet.addr).transfer(1 ether);
-    vm.stopBroadcast();
-
-    wallets_[who] = wallet;
+  function setupWallet_(string memory who, string memory env) private {
+    Wallet memory w;
+    w.pkey = uint256(vm.envBytes32(env));
+    w.addr = vm.addr(w.pkey);
+    wallets_[who] = w;
   }
 
   function deployContracts_() private {
@@ -92,7 +93,7 @@ contract DepositAndSwapScript is Script {
     uint128 mAmount = 10 ** 18 * 1_000_000;
     uint128 lAmount = 10 ** 18 * 100_000_000;
 
-    Vm.Wallet storage holder = wallets_[who];
+    Wallet storage holder = wallets_[who];
 
     vm.startBroadcast();
 
@@ -104,9 +105,9 @@ contract DepositAndSwapScript is Script {
   }
 
   function makeDeposit_(string memory who) private {
-    Vm.Wallet storage wallet = wallets_[who];
+    Wallet storage wallet = wallets_[who];
 
-    vm.startBroadcast(wallet.privateKey);
+    vm.startBroadcast(wallet.pkey);
 
     tokenA_.approve(address(dex), uint128(tokenA_.balanceOf(wallet.addr)));
     tokenB_.approve(address(dex), uint128(tokenB_.balanceOf(wallet.addr)));

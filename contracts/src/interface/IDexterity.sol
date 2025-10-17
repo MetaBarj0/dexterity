@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 /// @title IDexterity: the interface of the decentralized exchange
 /// @author crypt0
