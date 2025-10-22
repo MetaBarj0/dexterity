@@ -10,18 +10,18 @@
   },
   "dependencies": {
     "ethers": "^6",
-    "next": "^15",
+    "next": "^16",
     "react": "^19",
     "react-dom": "^19"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^22",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "^15",
+    "eslint-config-next": "^16",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
