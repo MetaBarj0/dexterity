@@ -98,7 +98,9 @@ app.listen(port, () => {
   const provider = ethers.getDefaultProvider("http://localhost:8545");
 
   const dexterityAddress =
-    latestRunJson.transactions.filter((item) => item.contractName === "Dexterity").at(0)?.contractAddress;
+    latestRunJson.transactions
+      .filter((item) => item.contractName === "Dexterity")
+      .at(0)?.contractAddress;
 
   const dexterityAbi = latestOutDexterityJson.abi;
   dexterity = new ethers.Contract(dexterityAddress!, dexterityAbi, provider);
